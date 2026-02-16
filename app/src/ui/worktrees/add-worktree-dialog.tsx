@@ -4,6 +4,7 @@ import { Repository } from '../../models/repository'
 import { Dispatcher } from '../dispatcher'
 import { Dialog, DialogContent, DialogFooter } from '../dialog'
 import { TextBox } from '../lib/text-box'
+import { RefNameTextBox } from '../lib/ref-name-text-box'
 import { Button } from '../lib/button'
 import { Row } from '../lib/row'
 import { OkCancelButtonGroup } from '../dialog/ok-cancel-button-group'
@@ -105,11 +106,10 @@ export class AddWorktreeDialog extends React.Component<
           </Row>
 
           <Row>
-            <TextBox
-              value={this.state.branchName}
+            <RefNameTextBox
               label={__DARWIN__ ? 'New Branch Name' : 'New branch name'}
-              placeholder="branch name (optional)"
-              onValueChanged={this.onBranchNameChanged}
+              initialValue=""
+              onValueChange={this.onBranchNameChanged}
             />
           </Row>
         </DialogContent>
