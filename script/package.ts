@@ -255,9 +255,9 @@ function getSemverCompatibleVersion() {
     const minor = parts[1]
     const patch = parts[2]
     console.warn(
-      `Version ${version} has more than 3 parts, which is not compatible with Squirrel.Windows. Using ${major}.${minor}.${patch}-${version} instead.`
+      `Version ${version} has more than 3 parts, which is not compatible with Squirrel.Windows. Using ${major}.${minor}.${patch}-v${version} instead.`
     )
-    return `${major}.${minor}.${patch}-${version}`
+    return `${major}.${minor}.${patch}-v${version}`
   }
   return version
 }
