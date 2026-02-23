@@ -24,6 +24,7 @@ import {
   getDistArchitecture,
 } from './dist-info'
 import { isGitHubActions } from './build-platforms'
+import * as fs from 'fs'
 import { existsSync, rmSync, writeFileSync } from 'fs'
 import { getVersion } from '../app/package-info'
 import { rename } from 'fs/promises'
@@ -165,6 +166,11 @@ function packageWindows() {
           `${getWindowsIdentifierName()}-${getVersion()}-${arch}-${kind}.nupkg`
         )
 
+        console.log('Files in output directory:')
+        const files = await fs.promises.readdir(outputDir)
+        for (const file of files) {
+          console.log(` - ${file}`)
+        }
         console.log(`Renaming ${from} to ${to}`)
         await rename(from, to)
       }
