@@ -248,11 +248,15 @@ async function packageLinux() {
 
 function getSemverCompatibleVersion() {
   const version = getVersion()
+  console.log(`Original version: ${version}`)
   const parts = version.split('.')
   if (parts.length > 3) {
     const major = parts[0]
     const minor = parts[1]
     const patch = parts[2]
+    console.warn(
+      `Version ${version} has more than 3 parts, which is not compatible with Squirrel.Windows. Using ${major}.${minor}.${patch}-${version} instead.`
+    )
     return `${major}.${minor}.${patch}-${version}`
   }
   return version

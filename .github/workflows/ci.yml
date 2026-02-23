@@ -82,7 +82,7 @@ jobs:
     steps:
       - name: Compute app version
         run: |
-          VERSION="0.0.0"
+          VERSION="1.2.3.4"
           if [[ "$GITHUB_REF" =~ ^refs/tags/ ]]; then
             # 'refs/tags/v1.2.3' -> '1.2.3'
             VERSION=$(echo "${GITHUB_REF/refs\/tags\//}" | sed -E "s/v(.*)/\\1/")
