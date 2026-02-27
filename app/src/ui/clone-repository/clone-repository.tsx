@@ -246,6 +246,10 @@ export class CloneRepository extends React.Component<
       urlTabState: {
         kind: 'url',
         ...initialBaseTabState,
+        selectedAccount:
+          props.accounts
+            .filter(account => account.apiType === 'dotcom')
+            .at(0) || null,
       },
     }
 
