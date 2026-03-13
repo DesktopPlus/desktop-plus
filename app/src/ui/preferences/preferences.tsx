@@ -62,20 +62,18 @@ import {
   DateFormat,
   TimeFormat,
   INumberFormat,
-  defaultDateFormat,
-  defaultTimeFormat,
-  numberFormatToKey,
-  numberFormatFromKey,
   getRelativeTimeInCommitList,
   getRelativeTimeInBranchList,
   setRelativeTimeInCommitList,
   setRelativeTimeInBranchList,
+  getDateFormatPreference,
+  getTimeFormatPreference,
+  getNumberFormatPreference,
+  setDateFormatPreference,
+  setTimeFormatPreference,
+  setNumberFormatPreference,
 } from '../../models/formatting-preferences'
 import { enableFormattingPreferences } from '../../lib/feature-flag'
-
-const dateFormatKey = 'dateFormat'
-const timeFormatKey = 'timeFormat'
-const numberFormatKey = 'numberFormat'
 
 interface IPreferencesProps {
   readonly dispatcher: Dispatcher
@@ -238,15 +236,9 @@ export class Preferences extends React.Component<
       cacheGitHookEnv: getCacheHooksEnv(),
       selectedGitHookEnvShell: getGitHookEnvShell(),
       hooksPreferencesDirty: false,
-      selectedDateFormat:
-        (localStorage.getItem(dateFormatKey) as DateFormat) ??
-        defaultDateFormat,
-      selectedTimeFormat:
-        (localStorage.getItem(timeFormatKey) as TimeFormat) ??
-        defaultTimeFormat,
-      selectedNumberFormat: numberFormatFromKey(
-        localStorage.getItem(numberFormatKey) ?? ''
-      ),
+      selectedDateFormat: getDateFormatPreference(),
+      selectedTimeFormat: getTimeFormatPreference(),
+      selectedNumberFormat: getNumberFormatPreference(),
       relativeTimeInCommitList: getRelativeTimeInCommitList(),
       relativeTimeInBranchList: getRelativeTimeInBranchList(),
     }
@@ -1000,12 +992,9 @@ export class Preferences extends React.Component<
 
     dispatcher.setDiffCheckMarksSetting(this.state.showDiffCheckMarks)
 
-    localStorage.setItem(dateFormatKey, this.state.selectedDateFormat)
-    localStorage.setItem(timeFormatKey, this.state.selectedTimeFormat)
-    localStorage.setItem(
-      numberFormatKey,
-      numberFormatToKey(this.state.selectedNumberFormat)
-    )
+    setDateFormatPreference(this.state.selectedDateFormat)
+    setTimeFormatPreference(this.state.selectedTimeFormat)
+    setNumberFormatPreference(this.state.selectedNumberFormat)
 
     setRelativeTimeInCommitList(this.state.relativeTimeInCommitList)
     setRelativeTimeInBranchList(this.state.relativeTimeInBranchList)

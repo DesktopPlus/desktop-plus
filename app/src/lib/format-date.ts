@@ -1,9 +1,7 @@
 import { format } from 'date-fns'
 import {
-  DateFormat,
-  TimeFormat,
-  defaultDateFormat,
-  defaultTimeFormat,
+  getDateFormatPreference,
+  getTimeFormatPreference,
 } from '../models/formatting-preferences'
 import { enableFormattingPreferences } from './feature-flag'
 import mem from 'mem'
@@ -17,21 +15,6 @@ const getDateFormatter = mem(Intl.DateTimeFormat, {
   cache: new QuickLRU({ maxSize: 100 }),
   cacheKey: (...args) => JSON.stringify(args),
 })
-
-const dateFormatKey = 'dateFormat'
-const timeFormatKey = 'timeFormat'
-
-function getDateFormatPreference(): DateFormat {
-  return (
-    (localStorage.getItem(dateFormatKey) as DateFormat) ?? defaultDateFormat
-  )
-}
-
-function getTimeFormatPreference(): TimeFormat {
-  return (
-    (localStorage.getItem(timeFormatKey) as TimeFormat) ?? defaultTimeFormat
-  )
-}
 
 interface IFormatDateOptions {
   /** Whether to include the date portion. Defaults to true. */

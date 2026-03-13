@@ -152,6 +152,45 @@ export const defaultNumberFormat: INumberFormat = {
   decimalSeparator: '.',
 }
 
+const dateFormatKey = 'dateFormat'
+const timeFormatKey = 'timeFormat'
+const numberFormatKey = 'numberFormat'
+
+/** Get the user's preferred date format from localStorage. */
+export function getDateFormatPreference(): DateFormat {
+  return (
+    (localStorage.getItem(dateFormatKey) as DateFormat) ?? defaultDateFormat
+  )
+}
+
+/** Get the user's preferred time format from localStorage. */
+export function getTimeFormatPreference(): TimeFormat {
+  return (
+    (localStorage.getItem(timeFormatKey) as TimeFormat) ?? defaultTimeFormat
+  )
+}
+
+/** Get the user's preferred number format from localStorage. */
+export function getNumberFormatPreference(): INumberFormat {
+  const key = localStorage.getItem(numberFormatKey)
+  return key ? numberFormatFromKey(key) : defaultNumberFormat
+}
+
+/** Set the user's preferred date format in localStorage. */
+export function setDateFormatPreference(format: DateFormat): void {
+  localStorage.setItem(dateFormatKey, format)
+}
+
+/** Set the user's preferred time format in localStorage. */
+export function setTimeFormatPreference(format: TimeFormat): void {
+  localStorage.setItem(timeFormatKey, format)
+}
+
+/** Set the user's preferred number format in localStorage. */
+export function setNumberFormatPreference(format: INumberFormat): void {
+  localStorage.setItem(numberFormatKey, numberFormatToKey(format))
+}
+
 /**
  * Serialize a number format to a stable string key for use in select elements
  * and localStorage.
