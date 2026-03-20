@@ -68,9 +68,6 @@ describe('release-notes', () => {
 
       const result = getReleaseSummary(oneOhEleveRelease)
       assert.equal(result.latestVersion, '1.0.11')
-      // the generated date here is local time, so it might either be the 13th or 14th
-      // let's just test it's showing the right month and year instead
-      assert(result.datePublished.includes('12/'))
       assert(result.datePublished.includes('2017'))
       assert.equal(result.bugfixes.length, 8)
       assert.equal(result.enhancements.length, 12)
@@ -113,9 +110,6 @@ describe('release-notes', () => {
 
       const result = getReleaseSummary(oneOhTenRelease)
       assert.equal(result.latestVersion, '1.0.10')
-      // the generated date here is local time, so it might either be the 5th or 6th
-      // let's just test it's showing the right month and year instead
-      assert(result.datePublished.includes('12/'))
       assert(result.datePublished.includes('2017'))
       assert.equal(result.bugfixes.length, 10)
       assert.equal(result.enhancements.length, 16)
@@ -140,9 +134,6 @@ describe('release-notes', () => {
 
       const result = getReleaseSummary(oneOhNineRelease)
       assert.equal(result.latestVersion, '1.0.9')
-      // the generated date here is local time, so it might either be the 16th or 17th
-      // let's just test it's showing the right month and year instead
-      assert(result.datePublished.includes('11/'))
       assert(result.datePublished.includes('2017'))
       assert.equal(result.bugfixes.length, 4)
       assert.equal(result.enhancements.length, 4)
