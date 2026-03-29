@@ -788,6 +788,17 @@ export class Dispatcher {
     return this.appStore._fetch(repository, fetchType)
   }
 
+  /**
+   * Fetch all refs without fast-forwarding local branches.
+   * Updates remote tracking refs only, leaving local branches untouched.
+   */
+  public fetchWithoutFastForward(
+    repository: Repository,
+    fetchType: FetchType
+  ): Promise<void> {
+    return this.appStore._fetchWithoutFastForward(repository, fetchType)
+  }
+
   /** Publish the repository to GitHub with the given properties. */
   public publishRepository(
     repository: Repository,

@@ -29,7 +29,7 @@ import {
   getNonGitHubUrl,
   isRepositoryWithGitHubRepository,
 } from '../models/repository'
-import { Branch } from '../models/branch'
+import { Branch, BranchType } from '../models/branch'
 import { PreferencesTab } from '../models/preferences'
 import { findItemByAccessKey, itemIsSelectable } from '../models/app-menu'
 import { Account, isDotComAccount } from '../models/account'
@@ -659,19 +659,54 @@ export class App extends React.Component<IAppProps, IAppState> {
       return
     }
 
-    await this.props.dispatcher.fetch(repository, FetchType.UserInitiatedTask)
+    // Fetch from the remote to update the remote tracking ref (e.g.
+    // origin/main) without fast-forwarding local branches.
+    await this.props.dispatcher.fetchWithoutFastForward(
+      repository,
+      FetchType.UserInitiatedTask
+    )
+
+    // Merge the remote tracking branch (e.g. origin/main) instead of the
+    // local branch, so that the local default branch is not altered as a
+    // side effect.
+    const branchToMerge = this.getRemoteTrackingBranch(
+      contributionTargetDefaultBranch,
+      state.branchesState.allBranches
+    )
 
     this.props.dispatcher.initializeMergeOperation(
       repository,
       false,
-      contributionTargetDefaultBranch
+      branchToMerge
     )
 
     const { mergeStatus } = state.compareState
-    this.props.dispatcher.mergeBranch(
-      repository,
-      contributionTargetDefaultBranch,
-      mergeStatus
+    this.props.dispatcher.mergeBranch(repository, branchToMerge, mergeStatus)
+  }
+
+  /**
+   * Returns the remote tracking branch for a given branch if available.
+   * For remote branches, returns the branch itself.
+   * For local branches, finds the corresponding remote branch in allBranches.
+   * Falls back to the original branch if no remote tracking branch is found.
+   */
+  private getRemoteTrackingBranch(
+    branch: Branch,
+    allBranches: ReadonlyArray<Branch>
+  ): Branch {
+    if (branch.type === BranchType.Remote) {
+      return branch
+    }
+
+    const upstream = branch.upstream
+    if (upstream === null) {
+      return branch
+    }
+
+    return (
+      allBranches.find(
+        b => b.type === BranchType.Remote && b.name === upstream
+      ) ?? branch
     )
   }
 

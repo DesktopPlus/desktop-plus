@@ -2908,9 +2908,16 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
     let contributionTargetDefaultBranch: string | undefined
     if (selectedRepository instanceof Repository) {
+      const targetBranch = findContributionTargetDefaultBranch(
+        selectedRepository,
+        branchesState
+      )
+      // Show the remote tracking branch name (e.g. "origin/main") in the
+      // menu label, since we merge from the remote ref, not the local one.
       contributionTargetDefaultBranch =
-        findContributionTargetDefaultBranch(selectedRepository, branchesState)
-          ?.name ?? undefined
+        targetBranch !== null
+          ? targetBranch.upstream ?? targetBranch.name
+          : undefined
     }
 
     // From the menu, we'll offer to force-push whenever it's possible, regardless
@@ -5898,6 +5905,22 @@ export class AppStore extends TypedBaseStore<IAppState> {
   }
 
   /**
+   * Fetch all relevant remotes without fast-forwarding local branches.
+   *
+   * This updates remote tracking refs (e.g. origin/main) but leaves local
+   * branches untouched. Useful when you only need to merge from a remote
+   * ref without altering the local branch state.
+   */
+  public _fetchWithoutFastForward(
+    repository: Repository,
+    fetchType: FetchType
+  ): Promise<void> {
+    return this.withRefreshedGitHubRepository(repository, repository => {
+      return this.performFetch(repository, fetchType, undefined, true)
+    })
+  }
+
+  /**
    * Fetch a particular remote in a repository.
    *
    * Note that this method will not perform the fetch of the specified remote
@@ -5923,7 +5946,8 @@ export class AppStore extends TypedBaseStore<IAppState> {
   private async performFetch(
     repository: Repository,
     fetchType: FetchType,
-    remotes?: IRemote[]
+    remotes?: IRemote[],
+    skipFastForward?: boolean
   ): Promise<void> {
     await this.withPushPullFetch(repository, async () => {
       const gitStore = this.gitStoreCache.get(repository)
@@ -5954,14 +5978,16 @@ export class AppStore extends TypedBaseStore<IAppState> {
           ? 'Refreshing Repository'
           : 'Refreshing repository'
 
-        this.updatePushPullFetchProgress(repository, {
-          kind: 'generic',
-          title: refreshTitle,
-          description: 'Fast-forwarding branches',
-          value: fetchWeight,
-        })
+        if (!skipFastForward) {
+          this.updatePushPullFetchProgress(repository, {
+            kind: 'generic',
+            title: refreshTitle,
+            description: 'Fast-forwarding branches',
+            value: fetchWeight,
+          })
 
-        await this.fastForwardBranches(repository)
+          await this.fastForwardBranches(repository)
+        }
 
         this.updatePushPullFetchProgress(repository, {
           kind: 'generic',
