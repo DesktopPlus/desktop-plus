@@ -1,7 +1,7 @@
 import { format } from 'date-fns'
 
 const localeCountryCode =
-  new URL(location.href).hash.match(/lc=(\w*)/)?.[1] ?? null
+  new URL(location.href).hash.match(/lc=([A-Z]{2})/)?.[1] ?? null
 
 /**
  * Countries that predominantly use 12-hour time format.
