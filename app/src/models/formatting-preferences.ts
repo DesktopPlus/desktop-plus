@@ -199,7 +199,7 @@ export interface INumberFormat {
  * avoid confusion in the previews). Similarly, the time portion should be
  * greater than 12:00 to make it clear when the 12-hour formats are used.
  */
-const previewDate = new Date(2025, 11, 25, 14, 30, 45)
+const previewDate = new Date(2017, 9, 19, 14, 30, 45)
 /**
  * All available date format patterns with their preview strings.
  */
