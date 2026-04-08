@@ -581,7 +581,16 @@ await dismissMoveToApplicationsDialog(page)
 
 ### Attaching artifacts to Pull Requests
 
-### Faking data or state for ad-hoc E2E screenshots
+After running E2E tests, collect artifacts from `playwright-videos/`:
+
+- **Screenshots**: the `.png` files you captured with `page.screenshot()`.
+- **Videos**: the `.webm` files recorded automatically by Playwright.
+- **Traces**: the `trace-*.zip` files saved by the fixture teardown.
+
+Attach the screenshots and video to the Pull Request description or as
+comments to show the new UI additions and prove the feature works end-to-end.
+
+#### Faking data or state for ad-hoc E2E screenshots
 
 Some UI features are only visible under specific conditions — for example, a
 signed-in GitHub.com account, a populated model list, or an active Copilot
@@ -632,15 +641,6 @@ copilotAvailable: true,
 ```
 
 After screenshots are captured, revert these two lines back to their originals.
-
-After running E2E tests, collect artifacts from `playwright-videos/`:
-
-- **Screenshots**: the `.png` files you captured with `page.screenshot()`.
-- **Videos**: the `.webm` files recorded automatically by Playwright.
-- **Traces**: the `trace-*.zip` files saved by the fixture teardown.
-
-Attach the screenshots and video to the Pull Request description or as
-comments to show the new UI additions and prove the feature works end-to-end.
 
 ---
 
