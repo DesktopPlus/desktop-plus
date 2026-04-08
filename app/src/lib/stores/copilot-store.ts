@@ -76,7 +76,7 @@ type ReasoningEffort = typeof ReasoningEffortOrder[number]
  * Returns the lowest reasoning effort supported by the given model, or
  * undefined if the model does not support reasoning effort configuration.
  */
-function getLowestReasoningEffort(
+export function getLowestReasoningEffort(
   model: ModelInfo
 ): ReasoningEffort | undefined {
   const supported = model.supportedReasoningEfforts as
@@ -96,7 +96,7 @@ function getLowestReasoningEffort(
  *
  * Returns null if the model list is empty.
  */
-function getPreferredDefaultModel(
+export function getPreferredDefaultModel(
   models: ReadonlyArray<ModelInfo>
 ): ModelInfo | null {
   if (models.length === 0) {
