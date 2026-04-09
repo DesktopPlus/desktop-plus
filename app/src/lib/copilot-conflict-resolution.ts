@@ -1,6 +1,3 @@
-/** Confidence level for a conflict resolution suggestion. */
-export type ConflictResolutionConfidence = 'high' | 'medium' | 'low'
-
 /** Resolution suggestion for a single conflicted file. */
 export interface IFileResolution {
   /** Repository-relative file path that was resolved. */
@@ -9,27 +6,12 @@ export interface IFileResolution {
   readonly resolvedContent: string
   /** Human-readable explanation of how and why conflicts were resolved this way. */
   readonly reasoning: string
-  /** Copilot's confidence in the resolution correctness. */
-  readonly confidence: ConflictResolutionConfidence
 }
 
 /** Complete response from Copilot conflict resolution. */
 export interface ICopilotConflictResolutionResponse {
   /** Resolution suggestions, one per conflicted file. */
   readonly resolutions: ReadonlyArray<IFileResolution>
-}
-
-const validConfidenceValues: ReadonlySet<string> = new Set([
-  'high',
-  'medium',
-  'low',
-])
-
-/** Type guard that checks whether a string is a valid confidence level. */
-export function isValidConfidence(
-  value: string
-): value is ConflictResolutionConfidence {
-  return validConfidenceValues.has(value)
 }
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
@@ -91,7 +73,7 @@ export function parseCopilotConflictResolution(
       )
     }
 
-    const { path, resolvedContent, reasoning, confidence } = entry
+    const { path, resolvedContent, reasoning } = entry
 
     if (typeof path !== 'string' || path.trim().length === 0) {
       throw new Error(
@@ -111,13 +93,7 @@ export function parseCopilotConflictResolution(
       )
     }
 
-    if (typeof confidence !== 'string' || !isValidConfidence(confidence)) {
-      throw new Error(
-        `Copilot returned an invalid conflict resolution payload: "confidence" at index ${i} must be one of: high, medium, low`
-      )
-    }
-
-    validated.push({ path, resolvedContent, reasoning, confidence })
+    validated.push({ path, resolvedContent, reasoning })
   }
 
   return { resolutions: validated }

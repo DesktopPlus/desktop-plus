@@ -77,7 +77,6 @@ Your job:
 1. Understand the INTENT behind each side's changes using commit messages and PR context when available
 2. Resolve each conflict by producing the correct merged content
 3. Explain your reasoning for each resolution
-4. Rate your confidence (high/medium/low)
 
 Resolution guidelines:
 - When both sides add complementary code (e.g., different imports, different functions), combine them
@@ -92,8 +91,7 @@ You MUST respond with valid JSON in this exact format:
     {
       "path": "relative/file/path.ts",
       "resolvedContent": "the complete resolved file content with all conflicts resolved",
-      "reasoning": "explanation of how you resolved each conflict and why",
-      "confidence": "high|medium|low"
+      "reasoning": "explanation of how you resolved each conflict and why"
     }
   ]
 }
