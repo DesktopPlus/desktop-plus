@@ -313,6 +313,18 @@ export interface IAppState {
   /** The selected tab size preference */
   readonly selectedTabSize: number
 
+  /** The selected font size preference for text diffs */
+  readonly selectedDiffFontSize: number
+
+  /** The selected font family preference for text diffs */
+  readonly selectedDiffFontFamily: string
+
+  /** The selected font weight preference for text diffs */
+  readonly selectedDiffFontWeight: string
+
+  /** The selected font ligatures preference for text diffs */
+  readonly selectedDiffFontLigatures: string
+
   /** The selected title bar style for the application */
   readonly titleBarStyle: TitleBarStyle
 

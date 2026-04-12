@@ -2708,6 +2708,34 @@ export class Dispatcher {
   public setSelectedTabSize(tabSize: number) {
     return this.appStore._setSelectedTabSize(tabSize)
   }
+
+  /**
+   * Set the application-wide diff font size
+   */
+  public setSelectedDiffFontSize(diffFontSize: number) {
+    return this.appStore._setSelectedDiffFontSize(diffFontSize)
+  }
+
+  /**
+   * Set the application-wide diff font family
+   */
+  public setSelectedDiffFontFamily(diffFontFamily: string) {
+    return this.appStore._setSelectedDiffFontFamily(diffFontFamily)
+  }
+
+  /**
+   * Set the application-wide diff font weight
+   */
+  public setSelectedDiffFontWeight(diffFontWeight: string) {
+    return this.appStore._setSelectedDiffFontWeight(diffFontWeight)
+  }
+
+  /**
+   * Set the application-wide diff font ligatures
+   */
+  public setSelectedDiffFontLigatures(diffFontLigatures: string) {
+    return this.appStore._setSelectedDiffFontLigatures(diffFontLigatures)
+  }
   /*
    * Set the title bar style for the application
    */
