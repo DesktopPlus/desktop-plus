@@ -100,17 +100,17 @@ export class Appearance extends React.Component<
 
   private onDateFormatChanged = (event: React.FormEvent<HTMLSelectElement>) => {
     const value = event.currentTarget.value
-    const match = dateFormats.find(f => f === value)
+    const match = dateFormats.find(f => f.pattern === value)
     if (match !== undefined) {
-      this.props.onSelectedDateFormatChanged(match)
+      this.props.onSelectedDateFormatChanged(match.pattern)
     }
   }
 
   private onTimeFormatChanged = (event: React.FormEvent<HTMLSelectElement>) => {
     const value = event.currentTarget.value
-    const match = timeFormats.find(f => f === value)
+    const match = timeFormats.find(f => f.pattern === value)
     if (match !== undefined) {
-      this.props.onSelectedTimeFormatChanged(match)
+      this.props.onSelectedTimeFormatChanged(match.pattern)
     }
   }
 
