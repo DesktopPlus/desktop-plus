@@ -11,6 +11,10 @@ import { Repository } from '../../models/repository'
 import { Dispatcher } from '../dispatcher'
 import { SeamlessDiffSwitcher } from '../diff/seamless-diff-switcher'
 import { PopupType } from '../../models/popup'
+import {
+  DiffPresentationStateComponent,
+  IDiffPresentationState,
+} from '../diff/diff-presentation-state'
 
 interface IChangesProps {
   readonly repository: Repository
@@ -49,6 +53,9 @@ interface IChangesProps {
    */
   readonly showSideBySideDiff: boolean
 
+  /** Whether we should display the diff minimap. */
+  readonly showDiffMinimap: boolean
+
   /** Whether or not to show the diff check marks indicating inclusion in a commit */
   readonly showDiffCheckMarks: boolean
 
@@ -56,7 +63,18 @@ interface IChangesProps {
   readonly onDiffOptionsOpened: () => void
 }
 
-export class Changes extends React.Component<IChangesProps, {}> {
+interface IChangesState extends IDiffPresentationState {}
+
+export class Changes extends DiffPresentationStateComponent<
+  IChangesProps,
+  IChangesState
+> {
+  public constructor(props: IChangesProps) {
+    super(props)
+
+    this.state = this.createDiffPresentationState()
+  }
+
   /**
    * Whether or not it's currently possible to change the line selection
    * of a diff. Changing selection is not possible while a commit is in
@@ -99,7 +117,22 @@ export class Changes extends React.Component<IChangesProps, {}> {
     }
   }
 
+  public componentDidUpdate(prevProps: IChangesProps) {
+    if (
+      prevProps.file.id !== this.props.file.id &&
+      this.state.canExpandWholeFile
+    ) {
+      this.resetWholeFileExpansionAvailability()
+    }
+  }
+
+  protected getDispatcher() {
+    return this.props.dispatcher
+  }
+
   public render() {
+    const showWholeFileInHeader = this.getShowWholeFileToggleState()
+
     return (
       <div className="diff-container">
         <DiffHeader
@@ -108,6 +141,11 @@ export class Changes extends React.Component<IChangesProps, {}> {
           diff={this.props.diff}
           showSideBySideDiff={this.props.showSideBySideDiff}
           onShowSideBySideDiffChanged={this.onShowSideBySideDiffChanged}
+          showDiffMinimap={this.props.showDiffMinimap}
+          onShowDiffMinimapChanged={this.onShowDiffMinimapChanged}
+          canExpandWholeFile={this.state.canExpandWholeFile}
+          showWholeFile={showWholeFileInHeader}
+          onShowWholeFileChanged={this.onShowWholeFileChanged}
           hideWhitespaceInDiff={this.props.hideWhitespaceInDiff}
           onHideWhitespaceInDiffChanged={this.onHideWhitespaceInDiffChanged}
           onDiffOptionsOpened={this.props.onDiffOptionsOpened}
@@ -123,6 +161,12 @@ export class Changes extends React.Component<IChangesProps, {}> {
           diff={this.props.diff}
           hideWhitespaceInDiff={this.props.hideWhitespaceInDiff}
           showSideBySideDiff={this.props.showSideBySideDiff}
+          showDiffMinimap={this.props.showDiffMinimap}
+          showWholeFile={this.state.showWholeFile}
+          onShowWholeFileChanged={this.onShowWholeFileChanged}
+          onWholeFileExpansionAvailabilityChanged={
+            this.onWholeFileExpansionAvailabilityChanged
+          }
           showDiffCheckMarks={this.props.showDiffCheckMarks}
           askForConfirmationOnDiscardChanges={
             this.props.askForConfirmationOnDiscardChanges

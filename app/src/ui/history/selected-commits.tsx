@@ -41,6 +41,10 @@ import { Account } from '../../models/account'
 import { Emoji } from '../../lib/emoji'
 import { assertNever } from '../../lib/fatal-error'
 import { GitHubRepository } from '../../models/github-repository'
+import {
+  DiffPresentationStateComponent,
+  IDiffPresentationState,
+} from '../diff/diff-presentation-state'
 
 interface ISelectedCommitsProps {
   readonly repository: Repository
@@ -69,6 +73,9 @@ interface ISelectedCommitsProps {
   /** Whether we should display side by side diffs. */
   readonly showSideBySideDiff: boolean
 
+  /** Whether we should display the diff minimap. */
+  readonly showDiffMinimap: boolean
+
   /**
    * Called when the user requests to open a binary file in an the
    * system-assigned application for said file type.
@@ -96,13 +103,13 @@ interface ISelectedCommitsProps {
   readonly accounts: ReadonlyArray<Account>
 }
 
-interface ISelectedCommitsState {
+interface ISelectedCommitsState extends IDiffPresentationState {
   readonly isExpanded: boolean
   readonly selectedFiles: ReadonlyArray<CommittedFileChange>
 }
 
 /** The History component. Contains the commit list, commit summary, and diff. */
-export class SelectedCommits extends React.Component<
+export class SelectedCommits extends DiffPresentationStateComponent<
   ISelectedCommitsProps,
   ISelectedCommitsState
 > {
@@ -114,6 +121,7 @@ export class SelectedCommits extends React.Component<
     this.state = {
       isExpanded: false,
       selectedFiles: [],
+      ...this.createDiffPresentationState(),
     }
   }
 
@@ -143,8 +151,25 @@ export class SelectedCommits extends React.Component<
     }
   }
 
+  public componentDidUpdate(prevProps: ISelectedCommitsProps) {
+    const previousFileId = prevProps.selectedFile?.id ?? null
+    const nextFileId = this.props.selectedFile?.id ?? null
+
+    if (
+      (previousFileId !== nextFileId ||
+        prevProps.currentDiff !== this.props.currentDiff) &&
+      this.state.canExpandWholeFile
+    ) {
+      this.resetWholeFileExpansionAvailability()
+    }
+  }
+
   public componentWillUnmount() {
     this.loadChangedFilesScheduler.clear()
+  }
+
+  protected getDispatcher() {
+    return this.props.dispatcher
   }
 
   private renderDiff() {
@@ -175,6 +200,12 @@ export class SelectedCommits extends React.Component<
           hideWhitespaceInDiff={this.props.hideWhitespaceInDiff}
           showDiffCheckMarks={false}
           showSideBySideDiff={this.props.showSideBySideDiff}
+          showDiffMinimap={this.props.showDiffMinimap}
+          showWholeFile={this.state.showWholeFile}
+          onShowWholeFileChanged={this.onShowWholeFileChanged}
+          onWholeFileExpansionAvailabilityChanged={
+            this.onWholeFileExpansionAvailabilityChanged
+          }
           onOpenBinaryFile={this.props.onOpenBinaryFile}
           onChangeImageDiffType={this.props.onChangeImageDiffType}
           onHideWhitespaceInDiffChanged={this.onHideWhitespaceInDiffChanged}
@@ -191,6 +222,7 @@ export class SelectedCommits extends React.Component<
     }
 
     const { path, status } = selectedFile
+    const showWholeFileInHeader = this.getShowWholeFileToggleState()
 
     return (
       <DiffHeader
@@ -199,6 +231,11 @@ export class SelectedCommits extends React.Component<
         status={status}
         showSideBySideDiff={this.props.showSideBySideDiff}
         onShowSideBySideDiffChanged={this.onShowSideBySideDiffChanged}
+        showDiffMinimap={this.props.showDiffMinimap}
+        onShowDiffMinimapChanged={this.onShowDiffMinimapChanged}
+        canExpandWholeFile={this.state.canExpandWholeFile}
+        showWholeFile={showWholeFileInHeader}
+        onShowWholeFileChanged={this.onShowWholeFileChanged}
         hideWhitespaceInDiff={this.props.hideWhitespaceInDiff}
         onHideWhitespaceInDiffChanged={this.onHideWhitespaceInDiffChanged}
         onDiffOptionsOpened={this.props.onDiffOptionsOpened}

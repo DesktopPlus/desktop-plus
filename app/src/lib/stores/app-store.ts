@@ -203,8 +203,11 @@ import { WorkflowPreferences } from '../../models/workflow-preferences'
 import { TrashNameLabel } from '../../ui/lib/context-menu'
 import { getDefaultDir } from '../../ui/lib/default-dir'
 import {
+  getShowDiffMinimap,
   getShowSideBySideDiff,
+  setShowDiffMinimap,
   setShowSideBySideDiff,
+  ShowDiffMinimapDefault,
   ShowSideBySideDiffDefault,
 } from '../../ui/lib/diff-mode'
 import { pathExists } from '../../ui/lib/path-exists'
@@ -638,6 +641,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
   private commitSpellcheckEnabled: boolean = commitSpellcheckEnabledDefault
   private showCommitAuthorInfo: boolean = showCommitAuthorInfoDefault
   private showSideBySideDiff: boolean = ShowSideBySideDiffDefault
+  private showDiffMinimap: boolean = ShowDiffMinimapDefault
 
   private uncommittedChangesStrategy = defaultUncommittedChangesStrategy
 
@@ -1252,6 +1256,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       hideWhitespaceInHistoryDiff: this.hideWhitespaceInHistoryDiff,
       hideWhitespaceInPullRequestDiff: this.hideWhitespaceInPullRequestDiff,
       showSideBySideDiff: this.showSideBySideDiff,
+      showDiffMinimap: this.showDiffMinimap,
       selectedShell: this.selectedShell,
       repositoryFilterText: this.repositoryFilterText,
       resolvedExternalEditor: this.resolvedExternalEditor,
@@ -2689,6 +2694,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       showCommitAuthorInfoDefault
     )
     this.showSideBySideDiff = getShowSideBySideDiff()
+    this.showDiffMinimap = getShowDiffMinimap()
 
     this.selectedTheme = getPersistedThemeName()
     // Make sure the persisted theme is applied
@@ -7202,6 +7208,14 @@ export class AppStore extends TypedBaseStore<IAppState> {
       setShowSideBySideDiff(showSideBySideDiff)
       this.showSideBySideDiff = showSideBySideDiff
       this.statsStore.increment('diffModeChangeCount')
+      this.emitUpdate()
+    }
+  }
+
+  public _setShowDiffMinimap(showDiffMinimap: boolean) {
+    if (showDiffMinimap !== this.showDiffMinimap) {
+      setShowDiffMinimap(showDiffMinimap)
+      this.showDiffMinimap = showDiffMinimap
       this.emitUpdate()
     }
   }

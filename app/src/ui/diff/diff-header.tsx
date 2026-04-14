@@ -5,6 +5,7 @@ import { IDiff, DiffType } from '../../models/diff'
 import { Octicon, iconForStatus } from '../octicons'
 import { mapStatus } from '../../lib/status'
 import { DiffOptions } from './diff-options'
+import { WholeFileToggle } from './whole-file-toggle'
 
 interface IDiffHeaderProps {
   readonly path: string
@@ -16,6 +17,21 @@ interface IDiffHeaderProps {
 
   /** Called when the user changes the side by side diffs setting. */
   readonly onShowSideBySideDiffChanged: (checked: boolean) => void
+
+  /** Whether we should display the diff minimap. */
+  readonly showDiffMinimap: boolean
+
+  /** Called when the user changes the diff minimap setting. */
+  readonly onShowDiffMinimapChanged: (checked: boolean) => void
+
+  /** Whether the current diff can be expanded to show the whole file. */
+  readonly canExpandWholeFile: boolean
+
+  /** Whether the current diff is showing the whole file. */
+  readonly showWholeFile: boolean
+
+  /** Called when the whole-file diff mode changes. */
+  readonly onShowWholeFileChanged: (showWholeFile: boolean) => void
 
   /** Whether we should hide whitespace in diffs. */
   readonly hideWhitespaceInDiff: boolean
@@ -37,6 +53,8 @@ export class DiffHeader extends React.Component<IDiffHeaderProps, {}> {
       <div className="header">
         <PathLabel path={this.props.path} status={this.props.status} />
 
+        {this.renderWholeFileToggle()}
+
         {this.renderDiffOptions()}
 
         <Octicon
@@ -45,6 +63,20 @@ export class DiffHeader extends React.Component<IDiffHeaderProps, {}> {
           title={fileStatus}
         />
       </div>
+    )
+  }
+
+  private renderWholeFileToggle() {
+    if (this.props.diff?.kind !== DiffType.Text) {
+      return null
+    }
+
+    return (
+      <WholeFileToggle
+        enabled={this.props.canExpandWholeFile}
+        showWholeFile={this.props.showWholeFile}
+        onShowWholeFileChanged={this.props.onShowWholeFileChanged}
+      />
     )
   }
 
@@ -62,6 +94,8 @@ export class DiffHeader extends React.Component<IDiffHeaderProps, {}> {
         hideWhitespaceChanges={this.props.hideWhitespaceInDiff}
         onShowSideBySideDiffChanged={this.props.onShowSideBySideDiffChanged}
         showSideBySideDiff={this.props.showSideBySideDiff}
+        onShowDiffMinimapChanged={this.props.onShowDiffMinimapChanged}
+        showDiffMinimap={this.props.showDiffMinimap}
         onDiffOptionsOpened={this.props.onDiffOptionsOpened}
       />
     )

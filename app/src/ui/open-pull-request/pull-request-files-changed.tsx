@@ -47,6 +47,9 @@ interface IPullRequestFilesChangedProps {
   /** Whether we should display side by side diffs. */
   readonly showSideBySideDiff: boolean
 
+  /** Whether we should display the diff minimap. */
+  readonly showDiffMinimap: boolean
+
   /** Whether we should hide whitespace in diff. */
   readonly hideWhitespaceInDiff: boolean
 
@@ -82,7 +85,9 @@ export class PullRequestFilesChanged extends React.Component<
   public constructor(props: IPullRequestFilesChangedProps) {
     super(props)
 
-    this.state = { showSideBySideDiff: props.showSideBySideDiff }
+    this.state = {
+      showSideBySideDiff: props.showSideBySideDiff,
+    }
   }
 
   private onOpenFile = (path: string) => {
@@ -110,6 +115,10 @@ export class PullRequestFilesChanged extends React.Component<
 
   private onShowSideBySideDiffChanged = (showSideBySideDiff: boolean) => {
     this.setState({ showSideBySideDiff })
+  }
+
+  private onShowDiffMinimapChanged = (showDiffMinimap: boolean) => {
+    return this.props.dispatcher.onShowDiffMinimapChanged(showDiffMinimap)
   }
 
   private onDiffOptionsOpened = () => {
@@ -267,7 +276,7 @@ export class PullRequestFilesChanged extends React.Component<
   }
 
   private renderHeader() {
-    const { hideWhitespaceInDiff } = this.props
+    const { hideWhitespaceInDiff, showDiffMinimap } = this.props
     const { showSideBySideDiff } = this.state
     return (
       <div className="files-changed-header">
@@ -280,6 +289,8 @@ export class PullRequestFilesChanged extends React.Component<
           onHideWhitespaceChangesChanged={this.onHideWhitespaceInDiffChanged}
           showSideBySideDiff={showSideBySideDiff}
           onShowSideBySideDiffChanged={this.onShowSideBySideDiffChanged}
+          showDiffMinimap={showDiffMinimap}
+          onShowDiffMinimapChanged={this.onShowDiffMinimapChanged}
           onDiffOptionsOpened={this.onDiffOptionsOpened}
         />
       </div>
@@ -330,6 +341,7 @@ export class PullRequestFilesChanged extends React.Component<
         readOnly={true}
         hideWhitespaceInDiff={hideWhitespaceInDiff}
         showSideBySideDiff={showSideBySideDiff}
+        showDiffMinimap={this.props.showDiffMinimap}
         showDiffCheckMarks={false}
         onOpenBinaryFile={this.onOpenBinaryFile}
         onChangeImageDiffType={this.onChangeImageDiffType}

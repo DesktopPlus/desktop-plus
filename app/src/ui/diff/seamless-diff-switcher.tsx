@@ -68,6 +68,22 @@ interface ISeamlessDiffSwitcherProps {
   // eslint-disable-next-line react/no-unused-prop-types
   readonly showSideBySideDiff: boolean
 
+  /** Whether we should display the diff minimap. */
+  // Used in getDerivedStateFromProps, no-unused-prop-types doesn't know that
+  // eslint-disable-next-line react/no-unused-prop-types
+  readonly showDiffMinimap: boolean
+
+  /** Whether contextual gaps should be expanded to show the whole file. */
+  readonly showWholeFile?: boolean
+
+  /** Called when the whole-file diff mode changes. */
+  readonly onShowWholeFileChanged?: (showWholeFile: boolean) => void
+
+  /** Called when the current diff can or cannot be expanded to a whole-file view. */
+  readonly onWholeFileExpansionAvailabilityChanged?: (
+    canExpandWholeFile: boolean
+  ) => void
+
   /** Whether or not to show the diff check marks indicating inclusion in a commit */
   // Used in getDerivedStateFromProps, no-unused-prop-types doesn't know that
   // eslint-disable-next-line react/no-unused-prop-types
@@ -168,6 +184,7 @@ export class SeamlessDiffSwitcher extends React.Component<
   ISeamlessDiffSwitcherProps,
   ISeamlessDiffSwitcherState
 > {
+  private wholeFileExpansionAvailable = false
   public static getDerivedStateFromProps(
     props: ISeamlessDiffSwitcherProps,
     state: ISeamlessDiffSwitcherState
@@ -224,10 +241,12 @@ export class SeamlessDiffSwitcher extends React.Component<
       this.scheduleSlowLoadingTimeout()
     }
     this.loadFileContentsIfNeeded(null)
+    this.notifyWholeFileExpansionAvailability()
   }
 
   public componentWillUnmount() {
     this.clearSlowLoadingTimeout()
+    this.notifyWholeFileExpansionAvailability(false)
   }
 
   public componentDidUpdate(
@@ -247,6 +266,7 @@ export class SeamlessDiffSwitcher extends React.Component<
     }
 
     this.loadFileContentsIfNeeded(prevProps.diff)
+    this.notifyWholeFileExpansionAvailability()
   }
 
   private async loadFileContentsIfNeeded(prevDiff: IDiff | null) {
@@ -324,6 +344,35 @@ export class SeamlessDiffSwitcher extends React.Component<
     }
   }
 
+  private canExpandWholeFile() {
+    const { diff, fileContents } = this.state
+
+    // Whole-file mode needs the text diff plus the loaded file contents that
+    // SideBySideDiff expands against. Until both are ready, the header should
+    // not advertise the control as available.
+    return (
+      diff !== null &&
+      diff.kind === DiffType.Text &&
+      diff.hunks.length > 0 &&
+      fileContents !== null &&
+      fileContents.canBeExpanded &&
+      fileContents.newContents.length > 0
+    )
+  }
+
+  private notifyWholeFileExpansionAvailability(
+    canExpandWholeFile = this.canExpandWholeFile()
+  ) {
+    if (canExpandWholeFile === this.wholeFileExpansionAvailable) {
+      return
+    }
+
+    this.wholeFileExpansionAvailable = canExpandWholeFile
+    // Keep the parent header state in lockstep with the loaded diff so the
+    // toggle only appears actionable when this view can actually expand.
+    this.props.onWholeFileExpansionAvailabilityChanged?.(canExpandWholeFile)
+  }
+
   public render() {
     const { isLoadingDiff, isLoadingSlow, fileContents, diff } = this.state
     const {
@@ -332,6 +381,7 @@ export class SeamlessDiffSwitcher extends React.Component<
       readOnly,
       hideWhitespaceInDiff,
       showSideBySideDiff,
+      showDiffMinimap,
       showDiffCheckMarks,
       onIncludeChanged,
       onDiscardChanges,
@@ -366,6 +416,9 @@ export class SeamlessDiffSwitcher extends React.Component<
             readOnly={readOnly}
             hideWhitespaceInDiff={hideWhitespaceInDiff}
             showSideBySideDiff={showSideBySideDiff}
+            showDiffMinimap={showDiffMinimap}
+            showWholeFile={this.props.showWholeFile}
+            onShowWholeFileChanged={this.props.onShowWholeFileChanged}
             askForConfirmationOnDiscardChanges={
               this.props.askForConfirmationOnDiscardChanges
             }

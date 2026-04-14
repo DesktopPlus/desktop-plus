@@ -21,6 +21,9 @@ interface IDiffOptionsProps {
   readonly showSideBySideDiff: boolean
   readonly onShowSideBySideDiffChanged: (showSideBySideDiff: boolean) => void
 
+  readonly showDiffMinimap: boolean
+  readonly onShowDiffMinimapChanged: (showDiffMinimap: boolean) => void
+
   /** Called when the user opens the diff options popover */
   readonly onDiffOptionsOpened: () => void
 }
@@ -81,6 +84,12 @@ export class DiffOptions extends React.Component<
     )
   }
 
+  private onShowDiffMinimapChanged = (
+    event: React.FormEvent<HTMLInputElement>
+  ) => {
+    return this.props.onShowDiffMinimapChanged(event.currentTarget.checked)
+  }
+
   public render() {
     const buttonLabel = `Diff ${__DARWIN__ ? 'Settings' : 'Options'}`
     return (
@@ -122,6 +131,7 @@ export class DiffOptions extends React.Component<
         <h3 id="diff-options-popover-header">{header}</h3>
         {this.renderHideWhitespaceChanges()}
         {this.renderShowSideBySide()}
+        {this.renderShowDiffMinimap()}
       </Popover>
     )
   }
@@ -178,6 +188,21 @@ export class DiffOptions extends React.Component<
             hiding whitespace.
           </p>
         )}
+      </fieldset>
+    )
+  }
+
+  private renderShowDiffMinimap() {
+    return (
+      <fieldset>
+        <legend>Minimap</legend>
+        <Checkbox
+          value={
+            this.props.showDiffMinimap ? CheckboxValue.On : CheckboxValue.Off
+          }
+          onChange={this.onShowDiffMinimapChanged}
+          label={__DARWIN__ ? 'Show Minimap' : 'Show minimap'}
+        />
       </fieldset>
     )
   }

@@ -1,5 +1,6 @@
 .side-by-side-diff-container {
   --width-line-number: 55px;
+  --diff-minimap-width: 88px;
 
   --hunk-handle-width-with-check-all: 16px;
   --hunk-handle-width: 4px;
@@ -72,11 +73,72 @@
     display: flex;
     flex-direction: column;
     flex-grow: 1;
+    min-height: 0;
     width: 100%;
     font-family: var(--diff-font-family, var(--font-family-monospace));
     font-size: var(--diff-font-size, var(--font-size-sm));
     color: var(--diff-text-color);
     background: var(--background-color);
+  }
+
+  .side-by-side-diff-body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+  }
+
+  .side-by-side-diff-list {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .diff-minimap,
+  .diff-minimap * {
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .diff-minimap {
+    width: var(--diff-minimap-width);
+    flex-shrink: 0;
+    position: relative;
+    padding: 0;
+    border: 0;
+    border-left: 1px solid var(--diff-border-color);
+    background: var(--box-alt-background-color);
+    appearance: none;
+    overflow: hidden;
+
+    &:focus {
+      outline: none;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--focus-color);
+      outline-offset: -2px;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  .diff-minimap-viewport {
+    position: absolute;
+    left: 2px;
+    right: 2px;
+    top: 0;
+    height: 0;
+    border: 1px solid var(--diff-selected-border-color);
+    border-radius: var(--border-radius);
+    background: var(--diff-selected-background-color);
+    opacity: 0.22;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+    pointer-events: none;
   }
 
   .ReactVirtualized__Grid:focus {
@@ -85,6 +147,22 @@
 
   .ReactVirtualized__Grid__innerScrollContainer {
     border-bottom: 1px solid var(--diff-border-color);
+  }
+
+  &.with-minimap {
+    // The minimap is the primary viewport indicator in this mode.
+    // Hiding the grid scrollbar avoids showing a second thumb whose
+    // position can drift while react-virtualized refines row heights.
+    .ReactVirtualized__Grid {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    .ReactVirtualized__Grid::-webkit-scrollbar {
+      display: none;
+      width: 0;
+      height: 0;
+    }
   }
 
   .row {

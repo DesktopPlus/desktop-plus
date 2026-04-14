@@ -923,6 +923,11 @@
       flex-shrink: 0;
     }
 
+    .diff-whole-file-toggle-component {
+      margin-right: var(--spacing);
+      flex-shrink: 0;
+    }
+
     .octicon.status {
       flex-shrink: 0;
       vertical-align: text-bottom;

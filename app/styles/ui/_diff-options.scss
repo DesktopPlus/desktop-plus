@@ -1,4 +1,5 @@
-.diff-options-component {
+.diff-options-component,
+.diff-whole-file-toggle-component {
   position: relative;
   display: flex;
 
@@ -16,7 +17,7 @@
 
     color: var(--text-color);
 
-    &:hover {
+    &:not(:disabled):hover {
       color: var(--text-secondary-color);
     }
 
@@ -28,6 +29,26 @@
       margin-right: 0;
     }
   }
+}
+
+.diff-whole-file-toggle-component {
+  > button {
+    justify-content: center;
+    padding: 0 var(--spacing-third);
+
+    &[aria-pressed='true'] {
+      color: var(--accent-color);
+    }
+
+    &:disabled {
+      color: var(--text-secondary-color);
+      cursor: default;
+      opacity: 0.55;
+    }
+  }
+}
+
+.diff-options-component {
 
   label {
     display: flex;

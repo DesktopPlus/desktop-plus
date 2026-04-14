@@ -56,6 +56,9 @@ interface IOpenPullRequestDialogProps {
   /** Whether we should display side by side diffs. */
   readonly showSideBySideDiff: boolean
 
+  /** Whether we should display the diff minimap. */
+  readonly showDiffMinimap: boolean
+
   /** Whether we should hide whitespace in diff. */
   readonly hideWhitespaceInDiff: boolean
 
@@ -189,6 +192,7 @@ export class OpenPullRequestDialog extends React.Component<IOpenPullRequestDialo
         imageDiffType={imageDiffType}
         nonLocalCommitSHA={nonLocalCommitSHA}
         selectedFile={file}
+        showDiffMinimap={this.props.showDiffMinimap}
         showSideBySideDiff={this.props.showSideBySideDiff}
         repository={repository}
         onOpenInExternalEditor={this.props.onOpenInExternalEditor}

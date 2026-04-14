@@ -73,6 +73,15 @@ interface IDiffProps {
   /** Whether we should display side by side diffs. */
   readonly showSideBySideDiff: boolean
 
+  /** Whether we should display the diff minimap. */
+  readonly showDiffMinimap: boolean
+
+  /** Whether contextual gaps should be expanded to show the whole file. */
+  readonly showWholeFile?: boolean
+
+  /** Called when the whole-file diff mode changes. */
+  readonly onShowWholeFileChanged?: (showWholeFile: boolean) => void
+
   /** Whether we should show a confirmation dialog when the user discards changes */
   readonly askForConfirmationOnDiscardChanges?: boolean
 
@@ -291,6 +300,9 @@ export class Diff extends React.Component<IDiffProps, IDiffState> {
         fileContents={this.props.fileContents}
         hideWhitespaceInDiff={this.props.hideWhitespaceInDiff}
         showSideBySideDiff={this.props.showSideBySideDiff}
+        showDiffMinimap={this.props.showDiffMinimap}
+        showWholeFile={this.props.showWholeFile}
+        onShowWholeFileChanged={this.props.onShowWholeFileChanged}
         onIncludeChanged={this.props.onIncludeChanged}
         onDiscardChanges={this.props.onDiscardChanges}
         askForConfirmationOnDiscardChanges={

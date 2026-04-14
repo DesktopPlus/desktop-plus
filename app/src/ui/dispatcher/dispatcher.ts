@@ -2426,6 +2426,11 @@ export class Dispatcher {
     return this.appStore._setShowSideBySideDiff(showSideBySideDiff)
   }
 
+  /** Change the diff minimap setting */
+  public onShowDiffMinimapChanged(showDiffMinimap: boolean) {
+    return this.appStore._setShowDiffMinimap(showDiffMinimap)
+  }
+
   /** Install the global Git LFS filters. */
   public installGlobalLFSFilters(force: boolean): Promise<void> {
     return this.appStore._installGlobalLFSFilters(force)
