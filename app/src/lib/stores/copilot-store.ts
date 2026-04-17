@@ -127,13 +127,6 @@ export function getPreferredDefaultModel(
 }
 
 /**
- * This store manages the Copilot client lifecycle based on the user's
- * GitHub.com account. It tracks account changes and creates the client
- * lazily when a Copilot feature is used.
- *
- * Currently, Copilot is only available for GitHub.com accounts.
- */
-/**
  * Error thrown when a commit message generation is cancelled by the user.
  */
 export class CommitMessageGenerationCancelledError extends Error {
@@ -143,6 +136,13 @@ export class CommitMessageGenerationCancelledError extends Error {
   }
 }
 
+/**
+ * This store manages the Copilot client lifecycle based on the user's
+ * GitHub.com account. It tracks account changes and creates the client
+ * lazily when a Copilot feature is used.
+ *
+ * Currently, Copilot is only available for GitHub.com accounts.
+ */
 export class CopilotStore extends BaseStore {
   private currentAccount: Account | null = null
 
