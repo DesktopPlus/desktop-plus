@@ -373,7 +373,10 @@ export class BranchList extends React.Component<IBranchListProps> {
 
   private onRenderNewButton = () => {
     return this.props.canCreateNewBranch ? (
-      <Button className="new-branch-button" onClick={this.onCreateNewBranch}>
+      <Button
+        className="new-branch-button button-with-icon"
+        onClick={this.onCreateNewBranch}
+      >
         <Octicon symbol={octicons.plus} className="mr" />
         {__DARWIN__ ? 'New Branch' : 'New branch'}
       </Button>

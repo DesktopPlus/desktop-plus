@@ -184,7 +184,7 @@ export class BranchesContainer extends React.Component<
     return (
       <Row className="merge-button-row">
         <Button
-          className="merge-button"
+          className="merge-button button-with-icon"
           onClick={this.onMergeClick}
           tooltip={`Choose a branch to merge into ${currentBranch.name}`}
         >

@@ -587,7 +587,7 @@ export class RepositoriesList extends React.Component<
     return (
       <>
         <Button
-          className="repo-list-button new-repository"
+          className="repo-list-button new-repository button-with-icon"
           onClick={this.onNewRepositoryButtonClick}
           ariaExpanded={this.state.newRepositoryMenuExpanded}
           onKeyDown={this.onNewRepositoryButtonKeyDown}
@@ -598,7 +598,7 @@ export class RepositoriesList extends React.Component<
 
         {this.state.pullingRepositories ? (
           <Button
-            className="repo-list-button pull-repositories-spin"
+            className="repo-list-button pull-repositories-spin button-with-icon"
             disabled={true}
           >
             <Octicon symbol={syncClockwise} className="spin" />
@@ -606,7 +606,7 @@ export class RepositoriesList extends React.Component<
           </Button>
         ) : (
           <Button
-            className="repo-list-button pull-repositories"
+            className="repo-list-button pull-repositories button-with-icon"
             onClick={this.onPullRepositoriesButtonClick}
           >
             <Octicon symbol={octicons.arrowDown} />

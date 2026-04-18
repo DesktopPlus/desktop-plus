@@ -41,6 +41,8 @@ interface IMenuBackedSuggestedActionProps {
    */
   readonly icon: OcticonSymbol
 
+  readonly extraIconClasses?: string
+
   /**
    * The type of action, currently supported actions are
    * normal, and primary. Primary actions are visually
@@ -91,6 +93,7 @@ export class MenuBackedSuggestedAction extends React.Component<
         discoverabilityContent={this.props.discoverabilityContent}
         buttonText={this.props.buttonText}
         icon={this.props.icon}
+        extraIconClasses={this.props.extraIconClasses}
         onClick={this.onClick}
         type={this.props.type}
         disabled={this.props.disabled}

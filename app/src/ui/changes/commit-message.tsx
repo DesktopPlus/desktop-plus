@@ -1641,7 +1641,7 @@ export class CommitMessage extends React.Component<
 
     return (
       <>
-        <span>{action}</span> <strong>{branch}</strong>
+        {action} <strong>{branch}</strong>
       </>
     )
   }

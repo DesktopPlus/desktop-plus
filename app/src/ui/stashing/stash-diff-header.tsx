@@ -44,7 +44,11 @@ export class StashDiffHeader extends React.Component<
       <div className="header">
         <h3>Stashed changes</h3>
         <div className="row button-group">
-          <Button onClick={this.onCloseClick} tooltip={'Close the stash view'}>
+          <Button
+            onClick={this.onCloseClick}
+            tooltip={'Close the stash view'}
+            className="button-with-icon"
+          >
             <Octicon symbol={octicons.x} className="mr" />
             Close
           </Button>
@@ -52,6 +56,7 @@ export class StashDiffHeader extends React.Component<
             onClick={this.onRestoreClick}
             type="submit"
             tooltip={'Restore the stashed changes into the working directory'}
+            className="button-with-icon"
             disabled={isRestoring || isDiscarding}
           >
             <Octicon symbol={octicons.fileDiff} className="mr" />
@@ -60,7 +65,7 @@ export class StashDiffHeader extends React.Component<
           <Button
             onClick={this.onDiscardClick}
             tooltip={'Discard the stashed changes'}
-            className="destructive"
+            className="destructive button-with-icon"
             disabled={isRestoring || isDiscarding}
           >
             <Octicon symbol={octicons.trash} className="mr" />

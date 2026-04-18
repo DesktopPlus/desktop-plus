@@ -33,6 +33,8 @@ interface ISuggestedActionProps {
    */
   readonly icon: OcticonSymbol
 
+  readonly extraIconClasses?: string
+
   /**
    * A callback which is invoked when the user clicks
    * or activates the action using their keyboard.
@@ -91,11 +93,14 @@ export class SuggestedAction extends React.Component<ISuggestedActionProps> {
         </div>
         <Button
           type={primary ? 'submit' : undefined}
-          className="suggested-action-button"
+          className="suggested-action-button button-with-icon"
           onClick={this.props.onClick}
           disabled={this.props.disabled}
         >
-          <Octicon symbol={this.props.icon} className="mr ml" />
+          <Octicon
+            symbol={this.props.icon}
+            className={'mr ml ' + (this.props.extraIconClasses ?? '')}
+          />
           {this.props.buttonText}
         </Button>
       </div>

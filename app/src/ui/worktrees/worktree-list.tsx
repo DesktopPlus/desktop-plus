@@ -100,7 +100,7 @@ export class WorktreeList extends React.Component<IWorktreeListProps> {
     }
     return (
       <Button
-        className="new-worktree-button"
+        className="new-worktree-button button-with-icon"
         onClick={this.props.onAddNewWorktree}
       >
         <Octicon symbol={octicons.plus} className="mr" />

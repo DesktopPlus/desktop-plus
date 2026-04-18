@@ -572,6 +572,7 @@ export class NoChanges extends React.Component<
         discoverabilityContent={discoverabilityContent}
         buttonText="Publish branch"
         icon={octicons.gitBranch}
+        extraIconClasses="mt"
         type="primary"
         disabled={!menuItem.enabled}
         onClick={this.onPublishBranchClicked}

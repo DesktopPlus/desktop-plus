@@ -64,6 +64,7 @@ export class CICheckReRunButton extends React.PureComponent<ICICheckReRunButtonP
         onClick={this.onRerunChecks}
         onKeyDown={this.onRerunKeyDown}
         disabled={this.props.disabled}
+        className="button-with-icon"
       >
         <Octicon symbol={syncClockwise} className="mr" /> {text}
       </Button>
