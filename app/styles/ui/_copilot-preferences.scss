@@ -23,12 +23,17 @@
 
     .copilot-byok-providers {
       list-style: none;
-      padding: 0;
-      margin: 0 0 var(--spacing);
+      padding: var(--spacing-half) var(--spacing-double);
+      // Negative horizontal margins so the bordered rows extend to the
+      // dialog's normal content edge while still leaving room inside for
+      // the scrollbar.
+      margin: 0 calc(-1 * var(--spacing-double)) var(--spacing);
       display: flex;
       flex-direction: column;
       gap: var(--spacing-half);
       min-width: 0;
+      max-height: 280px;
+      overflow-y: auto;
     }
 
     .copilot-byok-provider {
@@ -131,12 +136,14 @@
 
     .copilot-byok-providers {
       list-style: none;
-      padding: 0;
-      margin: 0 0 var(--spacing);
+      padding: var(--spacing-half) var(--spacing-double);
+      margin: 0 calc(-1 * var(--spacing-double)) var(--spacing);
       display: flex;
       flex-direction: column;
       gap: var(--spacing-half);
       min-width: 0;
+      max-height: 220px;
+      overflow-y: auto;
     }
 
     .copilot-byok-provider {
