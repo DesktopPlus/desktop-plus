@@ -321,11 +321,7 @@ export class EditCopilotBYOKProviderDialog extends React.Component<
             ))}
           </ul>
         )}
-        <Button
-          onClick={this.onAddModel}
-          className="copilot-byok-add-model-button"
-        >
-          <Octicon symbol={octicons.plus} />
+        <Button onClick={this.onAddModel}>
           {__DARWIN__ ? 'Add Model…' : 'Add model…'}
         </Button>
       </fieldset>
