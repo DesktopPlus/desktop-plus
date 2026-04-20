@@ -24,7 +24,11 @@ const getGitDirectoryBase = memoize((repository: Repository) => {
     // eslint-disable-next-line no-sync
     const contents = Fs.readFileSync(dotGit, 'utf8').trim()
     const gitDirPath = contents.replace(/^gitdir: /, '')
-    return Path.join(repository.path, gitDirPath)
+    if (Path.isAbsolute(gitDirPath)) {
+      return gitDirPath
+    } else {
+      return Path.join(repository.path, gitDirPath)
+    }
   } catch (e) {
     return dotGit
   }
