@@ -27,17 +27,6 @@ import { BaseStore } from './base-store'
 export const DefaultCopilotModel = 'gpt-5-mini'
 const DefaultReasoningEffort: ReasoningEffort = 'low'
 
-/**
- * Error subclass for parse and validation failures from Copilot responses.
- * Used to distinguish retryable errors from transport/auth failures.
- */
-class CopilotValidationError extends Error {
-  public constructor(message: string) {
-    super(message)
-    this.name = 'CopilotValidationError'
-  }
-}
-
 /** Copilot features that support per-model selection. */
 export type CopilotFeature = 'commit-message-generation'
 
@@ -194,34 +183,16 @@ Important:
 `
 
 /** Progress information emitted during conflict resolution. */
-export type ConflictResolutionProgress =
-  | {
-      readonly kind: 'analyzing'
-      readonly filesTotal: number
-    }
-  | {
-      readonly kind: 'chunk-complete'
-      readonly filesResolved: number
-      readonly filesTotal: number
-    }
-  | {
-      readonly kind: 'complete'
-    }
+export interface IConflictResolutionProgress {
+  readonly filesResolved: number
+  readonly filesTotal: number
+}
 
 /**
  * Maximum number of files to resolve in a single prompt. When the total
  * exceeds this threshold, the engine batches files into parallel chunks.
  */
 const SinglePromptFileLimit = 20
-
-/**
- * Compute the target chunk size based on total file count.
- * Smaller chunks at high file counts protect output quality — large
- * responses are more likely to truncate or produce malformed JSON.
- */
-function getChunkSize(fileCount: number): number {
-  return fileCount > 100 ? 15 : 20
-}
 
 /** Maximum number of chunks to resolve concurrently. */
 const MaxConcurrentChunks = 5
@@ -422,7 +393,7 @@ export class CopilotStore extends BaseStore {
     commitContext: IConflictCommitContext | null,
     pullRequest: PullRequest | null,
     repositoryPath: string,
-    onProgress?: (progress: ConflictResolutionProgress) => void
+    onProgress?: (progress: IConflictResolutionProgress) => void
   ): Promise<ICopilotConflictResolutionResponse> {
     const resolvableFiles = context.files.filter(f => !f.skippedReason)
     const filesTotal = resolvableFiles.length
@@ -431,7 +402,7 @@ export class CopilotStore extends BaseStore {
       throw new Error('No resolvable conflicted files')
     }
 
-    onProgress?.({ kind: 'analyzing', filesTotal })
+    onProgress?.({ filesResolved: 0, filesTotal })
 
     const client = await this.createClient(repositoryPath)
 
@@ -452,12 +423,13 @@ export class CopilotStore extends BaseStore {
           prompt,
           resolvableFiles
         )
-        onProgress?.({ kind: 'complete' })
+        onProgress?.({ filesResolved: filesTotal, filesTotal })
         return { resolutions }
       }
 
-      // Batch into chunks and resolve concurrently
-      const chunkSize = getChunkSize(filesTotal)
+      // Batch into chunks and resolve concurrently. Smaller chunks at high
+      // file counts protect output quality (less truncation/malformed JSON).
+      const chunkSize = filesTotal > 100 ? 15 : 20
       const chunks = createDependencyAwareChunks(resolvableFiles, chunkSize)
       const allResolutions: Array<IFileResolution> = []
       let filesResolved = 0
@@ -488,7 +460,6 @@ export class CopilotStore extends BaseStore {
             allResolutions.push(...result.value)
             filesResolved += result.value.length
             onProgress?.({
-              kind: 'chunk-complete',
               filesResolved,
               filesTotal,
             })
@@ -505,7 +476,7 @@ export class CopilotStore extends BaseStore {
         }
       }
 
-      onProgress?.({ kind: 'complete' })
+      onProgress?.({ filesResolved: filesTotal, filesTotal })
       return { resolutions: allResolutions }
     } finally {
       await this.stopClient(client)
@@ -554,7 +525,7 @@ export class CopilotStore extends BaseStore {
         const returnedPaths = new Set(parsed.resolutions.map(r => r.path))
         for (const path of returnedPaths) {
           if (!expectedPaths.has(path)) {
-            throw new CopilotValidationError(
+            throw new Error(
               `Copilot returned resolution for unexpected file: ${path}`
             )
           }
@@ -562,7 +533,7 @@ export class CopilotStore extends BaseStore {
 
         // Check for duplicate paths
         if (returnedPaths.size !== parsed.resolutions.length) {
-          throw new CopilotValidationError(
+          throw new Error(
             'Copilot returned duplicate file paths in resolutions'
           )
         }
@@ -575,7 +546,7 @@ export class CopilotStore extends BaseStore {
           }
         }
         if (missingPaths.length > 0) {
-          throw new CopilotValidationError(
+          throw new Error(
             `Copilot did not return resolutions for: ${missingPaths.join(', ')}`
           )
         }
@@ -585,11 +556,13 @@ export class CopilotStore extends BaseStore {
         lastError = e instanceof Error ? e : new Error(String(e))
 
         // Only retry on parse/validation failures — fail fast on
-        // transport errors (timeouts, auth, session creation)
+        // transport errors (timeouts, auth, session creation). All
+        // parse/validation errors use messages starting with "Copilot
+        // returned" or "Copilot did not return".
+        const msg = lastError.message
         const isRetryable =
-          lastError instanceof CopilotValidationError ||
-          lastError.message.includes('invalid JSON') ||
-          lastError.message.includes('invalid conflict resolution payload')
+          msg.startsWith('Copilot returned') ||
+          msg.startsWith('Copilot did not return')
 
         if (!isRetryable || attempt > 0) {
           break
@@ -686,17 +659,6 @@ export class CopilotStore extends BaseStore {
       await this.stopClient(client)
     }
   }
-}
-
-/**
- * Check if an import path refers to a file with the given baseName.
- * Requires the baseName to appear as a complete path segment
- * (e.g., `./utils` matches baseName `utils`, but `./utilities` does not).
- */
-function matchesBaseName(importPath: string, baseName: string): boolean {
-  // Strip extension from import path's final segment for comparison
-  const importBase = importPath.replace(/\.[^./]+$/, '').replace(/^.*\//, '')
-  return importBase === baseName
 }
 
 /**
@@ -834,11 +796,12 @@ export function createDependencyAwareChunks(
 
       // Match import paths by path-segment boundary — not bare substring —
       // to avoid false positives with short basenames like "e" or "api".
-      const aImportsB = [...a.importPaths].some(p =>
-        matchesBaseName(p, b.baseName)
+      // Strip extension and directory from import path to get its base name.
+      const aImportsB = [...a.importPaths].some(
+        p => p.replace(/\.[^./]+$/, '').replace(/^.*\//, '') === b.baseName
       )
-      const bImportsA = [...b.importPaths].some(p =>
-        matchesBaseName(p, a.baseName)
+      const bImportsA = [...b.importPaths].some(
+        p => p.replace(/\.[^./]+$/, '').replace(/^.*\//, '') === a.baseName
       )
 
       let sharedSymbols = false

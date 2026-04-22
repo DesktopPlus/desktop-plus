@@ -373,7 +373,7 @@ import {
   buildConflictContext,
   gatherCommitContext,
 } from '../copilot-conflict-context'
-import { ConflictResolutionProgress } from './copilot-store'
+import { IConflictResolutionProgress } from './copilot-store'
 
 const LastSelectedRepositoryIDKey = 'last-selected-repository-id'
 
@@ -5788,7 +5788,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
   /** This shouldn't be called directly. See 'Dispatcher'. */
   public async _resolveConflictsWithCopilot(
     repository: Repository,
-    onProgress?: (progress: ConflictResolutionProgress) => void
+    onProgress?: (progress: IConflictResolutionProgress) => void
   ): Promise<ICopilotConflictResolutionResponse | null> {
     if (!enableCopilotConflictResolution()) {
       return null
