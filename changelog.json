@@ -1,5 +1,10 @@
 {
   "releases": {
+    "3.5.9-beta2": [
+      "[Fixed] Add syntax highlighting for .astro files - #21987. Thanks @JunDev76!",
+      "[Fixed] Fix Windows scrollbar sync with react-virtualized Grid - #21940",
+      "[Fixed] Improve spacing on release notes dialog - #21962. Thanks @DylanDevelops!"
+    ],
     "3.5.9-beta1": [
       "[Added] Add date, time, and number formatting preferences to the Appearance settings - #21836",
       "[Fixed] Fix a crash (Maximum update depth exceeded) that could occur while the conflicts dialog was open during a multi-commit operation - #21879",

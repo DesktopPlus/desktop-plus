@@ -5,7 +5,7 @@
   "productName": "GitHub Desktop Plus",
   "bundleID": "com.github.GitHubClient",
   "companyName": "GitHub, Inc.",
-  "version": "3.5.9-beta1",
+  "version": "3.5.9-beta2",
   "main": "./main.js",
   "repository": {
     "type": "git",

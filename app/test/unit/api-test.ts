@@ -1,9 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert'
-import {
-  getNextPagePathWithIncreasingPageSize,
-  isTrustedRemoteHost,
-} from '../../src/lib/api'
+import { getNextPagePathWithIncreasingPageSize } from '../../src/lib/api'
 import * as URL from 'url'
 
 interface IPageInfo {
@@ -129,27 +126,6 @@ describe('API', () => {
       assertNext({ per_page: 100, page: 8 }, { per_page: 100, page: 8 })
       assertNext({ per_page: 100, page: 9 }, { per_page: 100, page: 9 })
       assertNext({ per_page: 100, page: 10 }, { per_page: 100, page: 10 })
-    })
-  })
-
-  describe('isTrustedRemoteHost', () => {
-    it('does not throw on invalid URLs', () => {
-      assert.equal(
-        isTrustedRemoteHost('org-123@github.example.com:someorg/somerepo.git'),
-        false
-      )
-    })
-
-    it('does not throw on empty string', () => {
-      assert.equal(isTrustedRemoteHost(''), false)
-    })
-
-    it('returns false for non-https protocols', () => {
-      assert.equal(isTrustedRemoteHost('http://github.com/foo/bar'), false)
-    })
-
-    it('returns true for github.com', () => {
-      assert.equal(isTrustedRemoteHost('https://github.com/foo/bar'), true)
     })
   })
 })
