@@ -8709,6 +8709,15 @@ export class AppStore extends TypedBaseStore<IAppState> {
     const secret =
       provider.authKind === 'none' ? null : await getBYOKSecret(provider.id)
 
+    if (provider.authKind !== 'none' && (secret === null || secret === '')) {
+      throw new Error(
+        `No ${
+          provider.authKind === 'bearer' ? 'bearer token' : 'API key'
+        } is stored for the custom Copilot provider '${provider.name}'. ` +
+          `Open Settings → Copilot → Providers and re-enter the credential.`
+      )
+    }
+
     const providerConfig: CopilotProviderConfig = {
       type: provider.type,
       baseUrl: provider.baseUrl,
