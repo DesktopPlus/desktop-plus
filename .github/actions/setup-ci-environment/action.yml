@@ -37,3 +37,34 @@ runs:
       env:
         npm_config_arch: ${{ inputs.arch }}
         TARGET_ARCH: ${{ inputs.arch }}
+
+    - name: Install arm64 cross-compilation tools
+      if: ${{ runner.os == 'Linux' && inputs.arch == 'arm64' }}
+      shell: bash
+      run: |
+        sudo apt-get update -q
+        sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
+    - name: Rebuild native modules for arm64
+      if: ${{ runner.os == 'Linux' && inputs.arch == 'arm64' }}
+      shell: bash
+      env:
+        CC: aarch64-linux-gnu-gcc
+        CXX: aarch64-linux-gnu-g++
+      run: |
+        NODE_GYP=node_modules/node-gyp/bin/node-gyp.js
+
+        # Rebuild printenvz (standalone executable, root node_modules)
+        (cd node_modules/printenvz && node ../../$NODE_GYP rebuild --arch=arm64)
+
+        # Rebuild process-proxy: its install script only builds for process.arch (x64),
+        # so we invoke node-gyp directly and copy the arm64 binary to the bin/ directory.
+        (cd node_modules/process-proxy && \
+          node ../../$NODE_GYP rebuild --arch=arm64 && \
+          cp build/Release/process-proxy-linux-arm64 bin/process-proxy-linux-arm64)
+
+        # Rebuild desktop-trampoline (standalone executables, app/node_modules)
+        (cd app/node_modules/desktop-trampoline && node ../../../$NODE_GYP rebuild --arch=arm64)
+
+        # Rebuild desktop-notifications (.node addon, app/node_modules)
+        (cd app/node_modules/desktop-notifications && node ../../../$NODE_GYP rebuild --arch=arm64)

@@ -463,7 +463,7 @@ function copyDependencies() {
 
   console.log('  Copying process-proxy binary')
   cpSync(
-    getProxyCommandPath(),
+    getProxyCommandPath(process.platform, getDistArchitecture()),
     path.resolve(
       outRoot,
       process.platform === 'win32' ? 'process-proxy.exe' : 'process-proxy'
