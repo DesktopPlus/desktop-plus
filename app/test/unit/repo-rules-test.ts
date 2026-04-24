@@ -334,3 +334,59 @@ describe('repo metadata rules', () => {
     })
   })
 })
+
+describe('getEnforcedHumanDescriptions', () => {
+  it('returns an empty array when no rules are configured', async () => {
+    const repoRulesInfo = await parseRepoRules([], rulesets, repo)
+    assert.deepEqual(
+      repoRulesInfo.commitMessagePatterns.getEnforcedHumanDescriptions(),
+      []
+    )
+  })
+
+  it('returns descriptions for enforced rules', async () => {
+    // Ruleset 1 has bypass 'never' -> enforced === true
+    const repoRulesInfo = await parseRepoRules(
+      [commitMessagePatternStartsWithRule],
+      rulesets,
+      repo
+    )
+    assert.deepEqual(
+      repoRulesInfo.commitMessagePatterns.getEnforcedHumanDescriptions(),
+      ['must start with "abc"']
+    )
+  })
+
+  it('returns descriptions for bypass-able rules (still evaluated by github.com)', async () => {
+    // Ruleset 2 has bypass 'always' -> enforced === 'bypass'
+    const repoRulesInfo = await parseRepoRules(
+      [commitMessagePatternStartsWithBypassRule],
+      rulesets,
+      repo
+    )
+    assert.deepEqual(
+      repoRulesInfo.commitMessagePatterns.getEnforcedHumanDescriptions(),
+      ['must start with "abc"']
+    )
+  })
+
+  it('returns descriptions for both enforced and bypass-able rules together', async () => {
+    const repoRulesInfo = await parseRepoRules(
+      [
+        commitMessagePatternStartsWithRule,
+        commitMessagePatternStartsWithBypassRule,
+        commitMessagePatternEndsWithRule,
+      ],
+      rulesets,
+      repo
+    )
+    assert.deepEqual(
+      repoRulesInfo.commitMessagePatterns.getEnforcedHumanDescriptions(),
+      [
+        'must start with "abc"',
+        'must start with "abc"',
+        'must not end with "end"',
+      ]
+    )
+  })
+})
