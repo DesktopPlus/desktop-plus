@@ -457,8 +457,6 @@ export class SideBySideDiff extends React.Component<
   ) {
     let resetDiff = false
 
-    this.invalidateMeasurementsIfDiffStyleChanged()
-
     if (
       !highlightParametersEqual(this.props, prevProps, this.state, prevState)
     ) {
@@ -674,24 +672,6 @@ export class SideBySideDiff extends React.Component<
     this.virtualListRef.current?.recomputeRowHeights()
   }
 
-  private applyDiffStyleKey(styleKey: string) {
-    if (styleKey === this.lastDiffStyleKey) {
-      return
-    }
-
-    this.lastDiffStyleKey = styleKey
-    this.invalidateMeasurements()
-  }
-
-  private invalidateMeasurementsIfDiffStyleChanged() {
-    const root = document.getElementById('desktop-app-chrome')
-    if (root === null) {
-      return
-    }
-
-    this.applyDiffStyleKey(SideBySideDiff.getDiffStyleKey(root))
-  }
-
   private setupStyleObserver() {
     const root = document.getElementById('desktop-app-chrome')
     if (root === null) {
@@ -706,7 +686,13 @@ export class SideBySideDiff extends React.Component<
         return
       }
 
-      this.applyDiffStyleKey(SideBySideDiff.getDiffStyleKey(target))
+      const newKey = SideBySideDiff.getDiffStyleKey(target)
+      if (newKey === this.lastDiffStyleKey) {
+        return
+      }
+
+      this.lastDiffStyleKey = newKey
+      this.invalidateMeasurements()
     })
 
     this.styleObserver.observe(root, {
