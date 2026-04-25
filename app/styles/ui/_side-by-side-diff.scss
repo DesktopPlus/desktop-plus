@@ -135,8 +135,7 @@
     height: 0;
     border: 1px solid var(--diff-selected-border-color);
     border-radius: var(--border-radius);
-    background: var(--diff-selected-background-color);
-    opacity: 0.22;
+    background: color-mix(in srgb, var(--diff-selected-background-color) 22%, transparent);
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
     pointer-events: none;
   }
