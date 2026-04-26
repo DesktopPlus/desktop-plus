@@ -73,8 +73,14 @@ import escapeRegExp from 'lodash/escapeRegExp'
 import ReactDOM from 'react-dom'
 import { AriaLiveContainer } from '../accessibility/aria-live-container'
 import { DiffMinimap } from './diff-minimap'
+import { getNumber, setNumber } from '../../lib/local-storage'
 
 const DefaultRowHeight = 20
+
+const minimapWidthKey = 'diff-minimap-width'
+const DefaultMinimapWidth = 88
+const MinMinimapWidth = 40
+const MaxMinimapWidth = 200
 
 let oldWidth = 0
 let oldHeight = 0
@@ -252,6 +258,9 @@ export class SideBySideDiff extends React.Component<
 
   private virtualListRef = React.createRef<List>()
   private diffContainer: HTMLDivElement | null = null
+  private containerRef = React.createRef<HTMLDivElement>()
+  private minimapResizeStartX = 0
+  private minimapResizeStartWidth = 0
   private styleObserver: MutationObserver | null = null
   private lastDiffStyleKey = ''
 
@@ -297,6 +306,7 @@ export class SideBySideDiff extends React.Component<
   public componentDidMount() {
     this.initDiffSyntaxMode()
     this.setupStyleObserver()
+    this.applyMinimapWidth(getNumber(minimapWidthKey, DefaultMinimapWidth))
 
     window.addEventListener('keydown', this.onWindowKeyDown)
 
@@ -441,6 +451,8 @@ export class SideBySideDiff extends React.Component<
   public componentWillUnmount() {
     this.teardownStyleObserver()
     window.removeEventListener('keydown', this.onWindowKeyDown)
+    window.removeEventListener('mousemove', this.onMinimapResizeMove)
+    window.removeEventListener('mouseup', this.onMinimapResizeEnd)
     document.removeEventListener('mouseup', this.onEndSelection)
     document.removeEventListener('find-text', this.showSearch)
     document.removeEventListener(
@@ -745,6 +757,7 @@ export class SideBySideDiff extends React.Component<
        */
       // eslint-disable-next-line jsx-a11y/no-static-element-interactions
       <div
+        ref={this.containerRef}
         className={containerClassName}
         onMouseDown={this.onMouseDown}
         onKeyDown={this.onKeyDown}
@@ -802,13 +815,26 @@ export class SideBySideDiff extends React.Component<
               </AutoSizer>
             </div>
             {this.props.showDiffMinimap && (
-              <DiffMinimap
-                rows={rows}
-                showSideBySideDiff={this.props.showSideBySideDiff}
-                getScrollableNode={this.getScrollContainerNode}
-                onScrollToPosition={this.onMinimapScrollToPosition}
-                getRowHeight={this.getMinimapRowHeight}
-              />
+              <>
+                {/* The separator role with onMouseDown is the standard
+                 * pattern for a resizable boundary; the linter doesn't
+                 * recognize separator as interactive. */}
+                {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
+                <div
+                  className="diff-minimap-resize-handle"
+                  role="separator"
+                  aria-orientation="vertical"
+                  aria-label="Resize minimap"
+                  onMouseDown={this.onMinimapResizeStart}
+                />
+                <DiffMinimap
+                  rows={rows}
+                  showSideBySideDiff={this.props.showSideBySideDiff}
+                  getScrollableNode={this.getScrollContainerNode}
+                  onScrollToPosition={this.onMinimapScrollToPosition}
+                  getRowHeight={this.getMinimapRowHeight}
+                />
+              </>
             )}
           </div>
         </div>
@@ -1148,6 +1174,53 @@ export class SideBySideDiff extends React.Component<
 
   private getMinimapRowHeight = (index: number): number => {
     return listRowsHeightCache.getHeight(index, 0) ?? DefaultRowHeight
+  }
+
+  // Drives the minimap-width drag without React state so the diff list
+  // doesn't re-render on every mousemove. The minimap reads its own
+  // clientWidth, so a CSS-var update is enough — the ResizeObserver in
+  // DiffMinimap picks up the change and reschedules a redraw.
+  private applyMinimapWidth(width: number) {
+    const clamped = Math.min(MaxMinimapWidth, Math.max(MinMinimapWidth, width))
+    this.containerRef.current?.style.setProperty(
+      '--diff-minimap-width',
+      `${clamped}px`
+    )
+  }
+
+  private getCurrentMinimapWidth(): number {
+    const container = this.containerRef.current
+    if (container === null) {
+      return DefaultMinimapWidth
+    }
+    const cssValue = window
+      .getComputedStyle(container)
+      .getPropertyValue('--diff-minimap-width')
+    const parsed = parseFloat(cssValue)
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : DefaultMinimapWidth
+  }
+
+  private onMinimapResizeStart = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0) {
+      return
+    }
+    event.preventDefault()
+    this.minimapResizeStartX = event.clientX
+    this.minimapResizeStartWidth = this.getCurrentMinimapWidth()
+    window.addEventListener('mousemove', this.onMinimapResizeMove)
+    window.addEventListener('mouseup', this.onMinimapResizeEnd)
+  }
+
+  private onMinimapResizeMove = (event: MouseEvent) => {
+    // Handle is at the minimap's left edge: dragging left widens.
+    const dx = this.minimapResizeStartX - event.clientX
+    this.applyMinimapWidth(this.minimapResizeStartWidth + dx)
+  }
+
+  private onMinimapResizeEnd = () => {
+    window.removeEventListener('mousemove', this.onMinimapResizeMove)
+    window.removeEventListener('mouseup', this.onMinimapResizeEnd)
+    setNumber(minimapWidthKey, this.getCurrentMinimapWidth())
   }
 
   private clearListRowsHeightCache = () => {

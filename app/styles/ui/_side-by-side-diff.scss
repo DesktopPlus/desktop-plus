@@ -86,6 +86,19 @@
     flex: 1;
     min-height: 0;
     min-width: 0;
+    position: relative;
+  }
+
+  .diff-minimap-resize-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: var(--diff-minimap-width);
+    width: 6px;
+    transform: translateX(50%);
+    cursor: ew-resize;
+    z-index: 2;
+    user-select: none;
   }
 
   .side-by-side-diff-list {
