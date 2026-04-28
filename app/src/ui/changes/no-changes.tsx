@@ -38,7 +38,7 @@ import {
 import { KeyboardShortcut } from '../keyboard-shortcut/keyboard-shortcut'
 import * as octicons from '../octicons/octicons.generated'
 import { OcticonSymbol } from '../octicons/octicons.generated'
-import { stash } from '../octicons'
+import { stash, bitbucket, gitlab } from '../octicons'
 import { assertNever } from '../../lib/fatal-error'
 import { formatNumber } from '../../lib/format-number'
 
@@ -302,8 +302,8 @@ export class NoChanges extends React.Component<
 
     const BROWSER_TARGETS: Record<RepoType | '_', [string, OcticonSymbol]> = {
       github: ['on Github', octicons.markGithub],
-      bitbucket: ['on Bitbucket', octicons.repo],
-      gitlab: ['on GitLab', octicons.repo],
+      bitbucket: ['on Bitbucket', bitbucket],
+      gitlab: ['on GitLab', gitlab],
       _: ['in your browser', octicons.globe],
     }
     const repoType = this.props.repository.gitHubRepository?.type ?? '_'
