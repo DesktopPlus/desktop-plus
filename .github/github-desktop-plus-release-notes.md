@@ -15,6 +15,11 @@ Upstream: [GitHub Desktop 3.5.9-beta2 release notes](https://github.com/desktop/
 
 - Improved the speed of some Bitbucket API calls by using the correct page size. This should speed up listing repositories and pull requests when the list is long.
 
+- Added custom icons for the "View in Bitbucket" and "View on GitLab" buttons in the "No local changes" view.
+
+
 ## **Fixes:**
 
 - Fixed loading of Bitbucket repositories (File > Clone repository > Bitbucket tab) by replacing a deprecated (removed) Bitbucket API endpoint.
+
+- Show the correct editor name in the "Resolve Conflicts" dialog when the current repository has a custom editor override.
