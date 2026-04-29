@@ -143,14 +143,13 @@
 
   .diff-minimap-viewport {
     position: absolute;
-    left: 2px;
-    right: 2px;
+    left: 3px;
+    right: 3px;
     top: 0;
     height: 0;
-    border: 1px solid var(--diff-selected-border-color);
     border-radius: var(--border-radius);
     background: color-mix(in srgb, var(--diff-selected-background-color) 22%, transparent);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+    box-shadow: 0 0 0 1px var(--diff-selected-border-color), inset 0 0 0 1px rgba(255, 255, 255, 0.35);
     pointer-events: none;
   }
 
