@@ -142,6 +142,10 @@ import { BypassReasonType } from '../secret-scanning/bypass-push-protection-dial
 import { EditorOverride } from '../../models/editor-override'
 import { convertToCopyPath } from '../../lib/helpers/path'
 import { EOL } from 'os'
+import {
+  ICopilotConflictResolutionResponse,
+  IConflictResolutionProgress,
+} from '../../lib/copilot-conflict-resolution'
 
 /**
  * An error handler function.
@@ -1229,6 +1233,17 @@ export class Dispatcher {
     filesSelected: ReadonlyArray<WorkingDirectoryFileChange>
   ) {
     return this.appStore._generateCommitMessage(repository, filesSelected)
+  }
+
+  /**
+   * Use Copilot to analyze and suggest resolutions for conflicts
+   * from merge, rebase, or cherry-pick operations.
+   */
+  public resolveConflictsWithCopilot(
+    repository: Repository,
+    onProgress?: (progress: IConflictResolutionProgress) => void
+  ): Promise<ICopilotConflictResolutionResponse | null> {
+    return this.appStore._resolveConflictsWithCopilot(repository, onProgress)
   }
 
   /** Remove the given account from the app. */

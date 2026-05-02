@@ -186,6 +186,7 @@ import {
   IFileListFilterState,
   isMergeConflictState,
   IMultiCommitOperationState,
+  ConflictState,
   IConstrainedValue,
   ICompareState,
   CommitOptions,
@@ -320,6 +321,7 @@ import {
 import { ManualConflictResolution } from '../../models/manual-conflict-resolution'
 import { BranchPruner } from './helpers/branch-pruner'
 import {
+  enableCopilotConflictResolution,
   enableCopilotSdkCommitMessageGeneration,
   enableCustomIntegration,
 } from '../feature-flag'
@@ -347,7 +349,7 @@ import {
   isValidTutorialStep,
 } from '../../models/tutorial-step'
 import { OnboardingTutorialAssessor } from './helpers/tutorial-assessor'
-import { getUntrackedFiles } from '../status'
+import { getConflictedFiles, getUntrackedFiles } from '../status'
 import { isBranchPushable } from '../helpers/push-control'
 import {
   findAssociatedPullRequest,
@@ -428,6 +430,14 @@ import {
 import { updateStore } from '../../ui/lib/update-store'
 import { BypassReasonType } from '../../ui/secret-scanning/bypass-push-protection-dialog'
 import { getRepoHooks } from '../hooks/get-repo-hooks'
+import {
+  ICopilotConflictResolutionResponse,
+  IConflictResolutionProgress,
+} from '../copilot-conflict-resolution'
+import {
+  buildConflictContext,
+  gatherCommitContext,
+} from '../copilot-conflict-context'
 
 const LastSelectedRepositoryIDKey = 'last-selected-repository-id'
 
@@ -6619,6 +6629,134 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
       return true
     })
+  }
+
+  /**
+   * Extract display labels and git refs for both sides of a conflict.
+   */
+  private async getConflictLabelsAndRefs(
+    repository: Repository,
+    conflictState: ConflictState,
+    multiCommitOperationState: IMultiCommitOperationState | null
+  ): Promise<{
+    readonly ourLabel: string
+    readonly theirLabel: string
+    readonly ourRef: string | undefined
+    readonly theirRef: string | undefined
+  }> {
+    if (isMergeConflictState(conflictState)) {
+      const theirBranch = await this.getMergeConflictsTheirBranch(
+        repository,
+        false,
+        multiCommitOperationState
+      )
+      return {
+        ourLabel: conflictState.currentBranch,
+        ourRef: conflictState.currentBranch,
+        theirLabel: theirBranch ?? 'incoming branch',
+        theirRef: theirBranch,
+      }
+    }
+
+    if (isRebaseConflictState(conflictState)) {
+      return {
+        ourLabel: conflictState.baseBranch ?? 'current branch',
+        ourRef: conflictState.baseBranch,
+        theirLabel: conflictState.targetBranch,
+        theirRef: conflictState.targetBranch,
+      }
+    }
+
+    if (isCherryPickConflictState(conflictState)) {
+      const sourceBranch =
+        multiCommitOperationState !== null &&
+        multiCommitOperationState.operationDetail.kind ===
+          MultiCommitOperationKind.CherryPick &&
+        multiCommitOperationState.operationDetail.sourceBranch !== null
+          ? multiCommitOperationState.operationDetail.sourceBranch.name
+          : undefined
+
+      return {
+        ourLabel: conflictState.targetBranchName,
+        ourRef: conflictState.targetBranchName,
+        theirLabel: sourceBranch ?? 'cherry-picked commit',
+        theirRef: sourceBranch,
+      }
+    }
+
+    return assertNever(conflictState, 'Unsupported conflict kind')
+  }
+
+  /** This shouldn't be called directly. See 'Dispatcher'. */
+  public async _resolveConflictsWithCopilot(
+    repository: Repository,
+    onProgress?: (progress: IConflictResolutionProgress) => void
+  ): Promise<ICopilotConflictResolutionResponse | null> {
+    if (!enableCopilotConflictResolution()) {
+      return null
+    }
+
+    try {
+      const state = this.repositoryStateCache.get(repository)
+      const { conflictState } = state.changesState
+
+      if (conflictState === null) {
+        log.warn(
+          'AppStore: resolveConflictsWithCopilot called with no active conflict state'
+        )
+        return null
+      }
+
+      const labels = await this.getConflictLabelsAndRefs(
+        repository,
+        conflictState,
+        state.multiCommitOperationState
+      )
+
+      const conflictedFiles = getConflictedFiles(
+        state.changesState.workingDirectory,
+        conflictState.manualResolutions
+      )
+
+      if (conflictedFiles.length === 0) {
+        log.warn(
+          'AppStore: resolveConflictsWithCopilot called with no conflicted files'
+        )
+        return null
+      }
+
+      const context = await buildConflictContext(
+        labels.ourLabel,
+        labels.theirLabel,
+        repository.path,
+        conflictedFiles
+      )
+
+      // Best-effort enrichment — never block resolution on these
+      const commitContext =
+        labels.ourRef && labels.theirRef
+          ? await gatherCommitContext(
+              repository,
+              labels.ourRef,
+              labels.theirRef
+            ).catch(() => null)
+          : null
+
+      const currentPullRequest = state.branchesState.currentPullRequest ?? null
+
+      const result = await this.copilotStore.resolveConflicts(
+        context,
+        commitContext,
+        currentPullRequest,
+        repository.path,
+        onProgress
+      )
+
+      return result
+    } catch (e) {
+      log.warn('AppStore: Copilot conflict resolution failed', e)
+      return null
+    }
   }
 
   /**

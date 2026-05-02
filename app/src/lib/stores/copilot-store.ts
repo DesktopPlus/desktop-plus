@@ -6,6 +6,25 @@ import {
   ICopilotCommitMessage,
   parseCopilotCommitMessage,
 } from '../copilot-commit-message'
+import {
+  CopilotValidationError,
+  ConflictResolutionSystemPrompt,
+  ICopilotConflictResolutionResponse,
+  IConflictResolutionProgress,
+  IFileResolution,
+  SinglePromptFileLimit,
+  MaxConcurrentChunks,
+  parseCopilotConflictResolution,
+  validateResolutionPaths,
+  createDependencyAwareChunks,
+} from '../copilot-conflict-resolution'
+import {
+  ICopilotConflictContext,
+  IConflictCommitContext,
+  IFileConflictContext,
+  formatConflictContextForPrompt,
+} from '../copilot-conflict-context'
+import { PullRequest } from '../../models/pull-request'
 import * as ipcRenderer from '../ipc-renderer'
 import { join } from 'path'
 import { pathToFileURL } from 'url'
@@ -538,6 +557,180 @@ export class CopilotStore extends BaseStore {
       // Stop the client after use
       await this.stopClient(client)
     }
+  }
+
+  /**
+   * Use the Copilot SDK to analyze conflicts and suggest resolutions.
+   *
+   * For small conflict sets (≤20 files) a single prompt is sent. Larger sets
+   * are automatically batched into parallel chunks with up to 5 concurrent
+   * requests. Each chunk is retried once on parse failure.
+   *
+   * @param context - The structured conflict context (files with hunks)
+   * @param commitContext - Optional commit history from both sides
+   * @param pullRequest - Optional pull request for enrichment
+   * @param repositoryPath - Path to the repository working directory
+   * @param onProgress - Optional callback for streaming progress to the UI
+   * @returns The parsed conflict resolution response
+   * @throws Error if no GitHub.com account is available or if resolution fails
+   */
+  public async resolveConflicts(
+    context: ICopilotConflictContext,
+    commitContext: IConflictCommitContext | null,
+    pullRequest: PullRequest | null,
+    repositoryPath: string,
+    onProgress?: (progress: IConflictResolutionProgress) => void
+  ): Promise<ICopilotConflictResolutionResponse> {
+    const resolvableFiles = context.files.filter(f => !f.skippedReason)
+    const filesTotal = resolvableFiles.length
+
+    if (filesTotal === 0) {
+      throw new Error('No resolvable conflicted files')
+    }
+
+    onProgress?.({ filesResolved: 0, filesTotal })
+
+    const client = await this.createClient(repositoryPath)
+
+    try {
+      if (filesTotal <= SinglePromptFileLimit) {
+        const filteredContext: ICopilotConflictContext = {
+          ourLabel: context.ourLabel,
+          theirLabel: context.theirLabel,
+          files: resolvableFiles,
+        }
+        const prompt = formatConflictContextForPrompt(
+          filteredContext,
+          commitContext,
+          pullRequest
+        )
+        const resolutions = await this.resolveChunk(
+          client,
+          prompt,
+          resolvableFiles
+        )
+        onProgress?.({ filesResolved: filesTotal, filesTotal })
+        return { resolutions }
+      }
+
+      // Batch into chunks and resolve concurrently. Smaller chunks at high
+      // file counts protect output quality (less truncation/malformed JSON).
+      const chunkSize = filesTotal > 100 ? 15 : 20
+      const chunks = createDependencyAwareChunks(resolvableFiles, chunkSize)
+      const allResolutions: Array<IFileResolution> = []
+      let filesResolved = 0
+
+      // Process chunks with bounded concurrency
+      for (let i = 0; i < chunks.length; i += MaxConcurrentChunks) {
+        const batch = chunks.slice(i, i + MaxConcurrentChunks)
+        const batchSettled = await Promise.allSettled(
+          batch.map(chunkFiles => {
+            const chunkContext: ICopilotConflictContext = {
+              ourLabel: context.ourLabel,
+              theirLabel: context.theirLabel,
+              files: chunkFiles,
+            }
+            const prompt = formatConflictContextForPrompt(
+              chunkContext,
+              commitContext,
+              pullRequest
+            )
+            return this.resolveChunk(client, prompt, chunkFiles)
+          })
+        )
+
+        // Collect results; throw the first failure after all settle
+        let firstError: Error | undefined
+        for (const result of batchSettled) {
+          if (result.status === 'fulfilled') {
+            allResolutions.push(...result.value)
+            filesResolved += result.value.length
+            onProgress?.({
+              filesResolved,
+              filesTotal,
+            })
+          } else if (firstError === undefined) {
+            firstError =
+              result.reason instanceof Error
+                ? result.reason
+                : new Error(String(result.reason))
+          }
+        }
+
+        if (firstError !== undefined) {
+          throw firstError
+        }
+      }
+
+      onProgress?.({ filesResolved: filesTotal, filesTotal })
+      return { resolutions: allResolutions }
+    } finally {
+      await this.stopClient(client)
+    }
+  }
+
+  /**
+   * Resolve a single chunk of files. Retries once on parse or validation
+   * failure. Transport errors (timeouts, auth, session creation) fail fast.
+   */
+  private async resolveChunk(
+    client: CopilotClient,
+    prompt: string,
+    expectedFiles: ReadonlyArray<IFileConflictContext>
+  ): Promise<ReadonlyArray<IFileResolution>> {
+    const expectedPaths = new Set(expectedFiles.map(f => f.path))
+    let lastError: Error | undefined
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      let session: Awaited<ReturnType<CopilotClient['createSession']>> | null =
+        null
+
+      try {
+        session = await client.createSession({
+          model: 'gpt-5-mini',
+          reasoningEffort: 'high',
+          availableTools: [],
+          systemMessage: {
+            mode: 'append',
+            content: ConflictResolutionSystemPrompt,
+          },
+          onPermissionRequest: async () => ({
+            kind: 'denied-interactively-by-user',
+          }),
+        })
+
+        const response = await session.sendAndWait({ prompt }, 600_000)
+
+        if (!response || !response.data.content) {
+          throw new Error('No response from Copilot')
+        }
+
+        const parsed = parseCopilotConflictResolution(response.data.content)
+        validateResolutionPaths(parsed.resolutions, expectedPaths)
+
+        return parsed.resolutions
+      } catch (e) {
+        lastError = e instanceof Error ? e : new Error(String(e))
+
+        // Only retry on parse/validation failures — fail fast on
+        // transport errors (timeouts, auth, session creation).
+        const isRetryable = lastError instanceof CopilotValidationError
+
+        if (!isRetryable || attempt > 0) {
+          break
+        }
+
+        log.warn(
+          'CopilotStore: Conflict resolution parse/validation failed, retrying',
+          e
+        )
+      } finally {
+        await session?.destroy().catch(() => {})
+      }
+    }
+
+    log.warn('CopilotStore: Failed to resolve conflicts after retry', lastError)
+    throw lastError ?? new Error('Conflict resolution failed')
   }
 
   /**
