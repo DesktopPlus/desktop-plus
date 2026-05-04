@@ -5790,7 +5790,10 @@ export class AppStore extends TypedBaseStore<IAppState> {
   }
 
   /** This shouldn't be called directly. See `Dispatcher`. */
-  private async performPull(repository: Repository): Promise<void> {
+  private async performPull(
+    repository: Repository,
+    allowRetry = true
+  ): Promise<void> {
     return this.withPushPullFetch(repository, async () => {
       const gitStore = this.gitStoreCache.get(repository)
 
@@ -5813,6 +5816,14 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
       if (tip.kind === TipState.Detached) {
         throw new Error('The current repository is in a detached HEAD state.')
+      }
+
+      if (tip.kind === TipState.Unknown && allowRetry) {
+        console.warn(
+          `Repo ${repository.name} was in an unknown state (not loaded) when trying to pull. Refreshing repository and trying again.`
+        )
+        await this._refreshRepository(repository)
+        return this.performPull(repository, false)
       }
 
       if (tip.kind === TipState.Valid) {
