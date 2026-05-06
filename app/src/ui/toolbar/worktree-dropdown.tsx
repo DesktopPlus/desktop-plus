@@ -28,7 +28,6 @@ interface IWorktreeDropdownProps {
 interface IWorktreeDropdownState {
   readonly worktrees: ReadonlyArray<WorktreeEntry>
   readonly filterText: string
-  readonly worktreeAddedRepo: Repository | null
 }
 
 export class WorktreeDropdown extends React.Component<
@@ -40,7 +39,6 @@ export class WorktreeDropdown extends React.Component<
     this.state = {
       worktrees: [],
       filterText: '',
-      worktreeAddedRepo: null,
     }
   }
 
@@ -63,32 +61,24 @@ export class WorktreeDropdown extends React.Component<
   }
 
   private onWorktreeClick = async (worktree: WorktreeEntry) => {
-    const { dispatcher, repositories } = this.props
-    const worktreePath = normalizePath(worktree.path)
-    const previousWorktreeRepo = this.state.worktreeAddedRepo
+    const { dispatcher, repository } = this.props
 
     dispatcher.closeFoldout(FoldoutType.Worktree)
 
-    const existingRepo = repositories.find(
-      r => r instanceof Repository && normalizePath(r.path) === worktreePath
-    )
-
-    if (existingRepo && existingRepo instanceof Repository) {
-      await dispatcher.selectRepository(existingRepo)
-      this.setState({ worktreeAddedRepo: null })
-    } else {
-      const addedRepos = await dispatcher.addRepositories([worktree.path])
-
-      if (addedRepos.length > 0) {
-        await dispatcher.selectRepository(addedRepos[0])
-        this.setState({ worktreeAddedRepo: addedRepos[0] })
-      }
+    const mainWorktree = this.state.worktrees.find(wt => wt.type === 'main')
+    if (mainWorktree === undefined) {
+      return
     }
 
-    if (previousWorktreeRepo) {
-      await dispatcher.removeRepository(previousWorktreeRepo, false)
-      dispatcher.closeFoldout(FoldoutType.Repository)
+    const mainWorktreePath = normalizePath(mainWorktree.path)
+    const worktreePath = normalizePath(worktree.path)
+
+    // Already on this worktree, nothing to do
+    if (worktreePath === normalizePath(repository.path)) {
+      return
     }
+
+    await dispatcher.switchWorktree(repository, worktreePath, mainWorktreePath)
   }
 
   // Intentional no-op: navigation happens on click, not selection change

@@ -5612,6 +5612,27 @@ export class AppStore extends TypedBaseStore<IAppState> {
     return Promise.resolve()
   }
 
+  /**
+   * Switch the repository to a different worktree. This shouldn't be called
+   * directly. See `Dispatcher`.
+   *
+   * If the target worktree path is already registered as a separate repository,
+   * that repository is selected instead of modifying the current one.
+   */
+  public async _switchWorktree(
+    repository: Repository,
+    worktreePath: string,
+    mainWorktreePath: string
+  ): Promise<void> {
+    const result = await this.repositoriesStore.switchWorktree(
+      repository,
+      worktreePath,
+      mainWorktreePath
+    )
+
+    await this._selectRepository(result.repository)
+  }
+
   public _setWorktreeDropdownWidth(width: number): Promise<void> {
     this.worktreeDropdownWidth = {
       ...this.worktreeDropdownWidth,

@@ -1010,6 +1010,20 @@ export class Dispatcher {
   }
 
   /**
+   * Switch the repository to a different worktree path.
+   *
+   * If the target path is already registered as a separate repository, that
+   * repository is selected instead.
+   */
+  public switchWorktree(
+    repository: Repository,
+    worktreePath: string,
+    mainWorktreePath: string
+  ): Promise<void> {
+    return this.appStore._switchWorktree(repository, worktreePath, mainWorktreePath)
+  }
+
+  /**
    * Set the width of the Push/Push toolbar button to the given value.
    * This affects the toolbar button and its dropdown element.
    *

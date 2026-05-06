@@ -345,6 +345,54 @@ export class RepositoriesStore extends TypedBaseStore<
   }
 
   /**
+   * Switch the repository to a different worktree path, persisting the main
+   * worktree path as a stable anchor for recovery.
+   *
+   * If another repository already exists at the target path, returns that
+   * repository instead of modifying the current one.
+   *
+   * @param repository  The repository to switch
+   * @param worktreePath The path of the worktree to switch to
+   * @param mainWorktreePath The path of the main worktree (used as anchor)
+   */
+  public async switchWorktree(
+    repository: Repository,
+    worktreePath: string,
+    mainWorktreePath: string
+  ): Promise<{ repository: Repository; existingRepository: boolean }> {
+    const existing = await this.db.repositories.get({ path: worktreePath })
+
+    if (existing !== undefined) {
+      return {
+        repository: await this.toRepository(existing),
+        existingRepository: true,
+      }
+    }
+
+    await this.db.repositories.update(repository.id, {
+      path: worktreePath,
+      missing: false,
+      mainWorktreePath,
+    })
+
+    this.emitUpdatedRepositories()
+
+    return {
+      repository: new Repository(
+        worktreePath,
+        repository.id,
+        repository.gitHubRepository,
+        false,
+        repository.alias,
+        repository.workflowPreferences,
+        repository.isTutorialRepository,
+        mainWorktreePath
+      ),
+      existingRepository: false,
+    }
+  }
+
+  /**
    * Sets the last time the repository was checked for stash entries
    *
    * @param repository The repository in which to update the last stash check date for
