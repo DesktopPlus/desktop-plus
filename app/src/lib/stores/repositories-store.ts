@@ -358,7 +358,8 @@ export class RepositoriesStore extends TypedBaseStore<
   public async switchWorktree(
     repository: Repository,
     worktreePath: string,
-    mainWorktreePath: string
+    mainWorktreePath: string,
+    missing = false
   ): Promise<{ repository: Repository; existingRepository: boolean }> {
     const existing = await this.db.repositories.get({ path: worktreePath })
 
@@ -371,7 +372,7 @@ export class RepositoriesStore extends TypedBaseStore<
 
     await this.db.repositories.update(repository.id, {
       path: worktreePath,
-      missing: false,
+      missing,
       mainWorktreePath,
     })
 
@@ -382,7 +383,7 @@ export class RepositoriesStore extends TypedBaseStore<
         worktreePath,
         repository.id,
         repository.gitHubRepository,
-        false,
+        missing,
         repository.alias,
         repository.workflowPreferences,
         repository.isTutorialRepository,

@@ -5624,10 +5624,30 @@ export class AppStore extends TypedBaseStore<IAppState> {
     worktreePath: string,
     mainWorktreePath: string
   ): Promise<void> {
+    const { kind } = await getRepositoryType(worktreePath).catch(e => {
+      log.error('Could not determine repository type', e)
+      return { kind: 'missing' } as RepositoryType
+    })
+
+    if (kind !== 'regular' && kind !== 'unsafe') {
+      this.emitError(
+        new Error(
+          `The worktree path '${worktreePath}' does not appear to be a valid Git repository.`
+        )
+      )
+      return
+    }
+
+    // If the repository path isn't trusted we'll mark the repository as
+    // missing. The missing repository view knows how to add a path to the
+    // allow list.
+    const missing = kind === 'unsafe'
+
     const result = await this.repositoriesStore.switchWorktree(
       repository,
       worktreePath,
-      mainWorktreePath
+      mainWorktreePath,
+      missing
     )
 
     await this._selectRepository(result.repository)
