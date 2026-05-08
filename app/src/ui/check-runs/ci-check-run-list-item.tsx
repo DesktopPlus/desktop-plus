@@ -125,7 +125,7 @@ export class CICheckRunListItem extends React.PureComponent<ICICheckRunListItemP
           role="link"
         >
           View details
-          <Octicon symbol={octicons.linkExternal} />
+          <Octicon className="ml" symbol={octicons.linkExternal} />
         </Button>
       )
     }
