@@ -5794,8 +5794,9 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
   public async _pullAllRepositories(): Promise<void> {
     const repositories = await this.repositoriesStore.getAll()
+    const nonMissingRepos = repositories.filter(r => !r.missing)
     await Promise.all(
-      repositories.map(repository =>
+      nonMissingRepos.map(repository =>
         this.withRepoInfoInError('Error pulling', repository, () =>
           this._pull(repository)
         )
