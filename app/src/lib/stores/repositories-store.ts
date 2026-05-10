@@ -716,7 +716,7 @@ export class RepositoriesStore extends TypedBaseStore<
     const permissions =
       getPermissionsString(gitHubRepository) ??
       existingRepo?.permissions ??
-      undefined
+      null
 
     // If we're told to ignore the parent then we'll attempt to use the existing
     // parent and if that fails set it to null. This happens when we want to

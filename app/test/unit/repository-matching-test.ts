@@ -111,6 +111,78 @@ describe('repository-matching', () => {
       assert.equal(repo.owner, 'someuser')
     })
 
+    it('prefers the account whose login matches the remote owner when login is null', () => {
+      const accounts = [
+        new Account(
+          'firstaccount',
+          'https://api.github.com',
+          '',
+          '',
+          0,
+          [],
+          '',
+          1,
+          '',
+          'free'
+        ),
+        new Account(
+          'someuser',
+          'https://api.github.com',
+          '',
+          '',
+          0,
+          [],
+          '',
+          2,
+          '',
+          'free'
+        ),
+      ]
+      const repo = matchGitHubRepository(
+        accounts,
+        'https://github.com/someuser/somerepo.git',
+        null
+      )
+      assert(repo !== null)
+      assert.equal(repo.account.login, 'someuser')
+    })
+
+    it('falls back to first hostname match when no account matches the remote owner', () => {
+      const accounts = [
+        new Account(
+          'alovelace',
+          'https://api.github.com',
+          '',
+          '',
+          0,
+          [],
+          '',
+          1,
+          '',
+          'free'
+        ),
+        new Account(
+          'cbabbage',
+          'https://api.github.com',
+          '',
+          '',
+          0,
+          [],
+          '',
+          2,
+          '',
+          'free'
+        ),
+      ]
+      const repo = matchGitHubRepository(
+        accounts,
+        'https://github.com/someuser/somerepo.git',
+        null
+      )
+      assert(repo !== null)
+      assert.equal(repo.account.login, 'alovelace')
+    })
+
     it(`doesn't match if there aren't any users with that endpoint`, () => {
       const accounts = [
         new Account(

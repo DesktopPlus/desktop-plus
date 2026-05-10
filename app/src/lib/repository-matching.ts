@@ -33,26 +33,44 @@ export function matchGitHubRepository(
   remote: string,
   login: string | null
 ): IMatchedGitHubRepository | null {
+  const parsedRemote = parseRemote(remote)
+  if (parsedRemote === null) {
+    return null
+  }
+
+  // If login is null, prefer the owner account, then fallback to the first account with a matching hostname.
+  let hostnameMatch: IMatchedGitHubRepository | null = null
+
   for (const account of accounts) {
     const htmlURL = getHTMLURL(account.endpoint)
     const { hostname } = URL.parse(htmlURL)
-    const parsedRemote = parseRemote(remote)
 
-    if (parsedRemote !== null && hostname !== null) {
-      if (
-        parsedRemote.hostname.toLowerCase() === hostname.toLowerCase() &&
-        (login === null || account.login === login)
-      ) {
-        return {
-          name: parsedRemote.name,
-          owner: parsedRemote.owner,
-          account,
+    if (
+      hostname !== null &&
+      parsedRemote.hostname.toLowerCase() === hostname.toLowerCase()
+    ) {
+      const matched: IMatchedGitHubRepository = {
+        name: parsedRemote.name,
+        owner: parsedRemote.owner,
+        account,
+      }
+
+      if (login !== null) {
+        if (account.login === login) {
+          return matched
+        }
+      } else {
+        if (account.login === parsedRemote.owner) {
+          return matched
+        }
+        if (hostnameMatch === null) {
+          hostnameMatch = matched
         }
       }
     }
   }
 
-  return null
+  return hostnameMatch
 }
 
 /**
