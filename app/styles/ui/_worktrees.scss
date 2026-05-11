@@ -69,3 +69,50 @@
     font-weight: var(--font-weight-semibold);
   }
 }
+
+#add-worktree {
+  .branch-name-with-suggestions {
+    position: relative;
+    flex-grow: 1;
+  }
+
+  .branch-suggestions {
+    position: absolute;
+    z-index: var(--popup-z-index);
+    left: 0;
+    right: 0;
+    max-height: 200px;
+    overflow-y: auto;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    background: var(--box-background-color);
+    border: var(--base-border);
+    border-radius: var(--border-radius);
+    box-shadow: var(--base-box-shadow);
+
+    li {
+      padding: var(--spacing-third) var(--spacing-half);
+      cursor: pointer;
+      @include ellipsis;
+
+      &:hover,
+      &.selected {
+        background: var(--list-active-background-color);
+        color: var(--list-active-text-color);
+      }
+
+      mark {
+        font-weight: bold;
+        background-color: inherit;
+        color: currentColor;
+      }
+    }
+  }
+
+  .branch-status-hint {
+    margin: var(--spacing-third) 0 0;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary-color);
+  }
+}
