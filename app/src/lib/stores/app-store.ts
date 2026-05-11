@@ -207,6 +207,8 @@ import {
   appendIgnoreFile,
   getRepositoryType,
   RepositoryType,
+  listWorktrees,
+  removeWorktree,
   getCommitRangeDiff,
   getCommitRangeChangedFiles,
   updateRemoteHEAD,
@@ -5672,6 +5674,29 @@ export class AppStore extends TypedBaseStore<IAppState> {
     )
 
     await this._selectRepository(result.repository)
+  }
+
+  /** This shouldn't be called directly. See 'Dispatcher'. */
+  public async _deleteWorktree(
+    repository: Repository,
+    worktreePath: string
+  ): Promise<void> {
+    const isDeletingCurrentWorktree = repository.path === worktreePath
+
+    if (isDeletingCurrentWorktree) {
+      const worktrees = await listWorktrees(repository)
+      const mainPath = worktrees.find(wt => wt.type === 'main')?.path
+
+      if (mainPath === undefined) {
+        this.emitError(new Error('Could not find main worktree'))
+        return
+      }
+
+      await this._switchWorktree(repository, mainPath, mainPath)
+      await removeWorktree(mainPath, worktreePath)
+    } else {
+      await removeWorktree(repository.path, worktreePath)
+    }
   }
 
   public _setWorktreeDropdownWidth(width: number): Promise<void> {

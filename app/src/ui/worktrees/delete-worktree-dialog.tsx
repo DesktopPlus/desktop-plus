@@ -1,17 +1,13 @@
 import * as React from 'react'
 import * as Path from 'path'
 
-import { Repository } from '../../models/repository'
-import { Dispatcher } from '../dispatcher'
 import { Dialog, DialogContent, DialogFooter } from '../dialog'
 import { Ref } from '../lib/ref'
 import { OkCancelButtonGroup } from '../dialog/ok-cancel-button-group'
-import { removeWorktree, listWorktrees } from '../../lib/git/worktree'
 
 interface IDeleteWorktreeDialogProps {
-  readonly repository: Repository
   readonly worktreePath: string
-  readonly dispatcher: Dispatcher
+  readonly onDeleteWorktree: () => Promise<void>
   readonly onDismissed: () => void
 }
 
@@ -39,7 +35,7 @@ export class DeleteWorktreeDialog extends React.Component<
         id="delete-worktree"
         title={__DARWIN__ ? 'Delete Worktree' : 'Delete worktree'}
         type="warning"
-        onSubmit={this.onDeleteWorktree}
+        onSubmit={this.onSubmit}
         onDismissed={this.props.onDismissed}
         disabled={this.state.isDeleting}
         loading={this.state.isDeleting}
@@ -58,37 +54,9 @@ export class DeleteWorktreeDialog extends React.Component<
     )
   }
 
-  private onDeleteWorktree = async () => {
+  private onSubmit = async () => {
     this.setState({ isDeleting: true })
-
-    const { repository, worktreePath, dispatcher } = this.props
-    const isDeletingCurrentWorktree =
-      repository.path === worktreePath
-
-    try {
-      if (isDeletingCurrentWorktree) {
-        // When deleting the currently selected worktree, we must switch away
-        // first. Otherwise git runs from the directory being deleted and the
-        // app is left pointing at a non-existent path.
-        const worktrees = await listWorktrees(repository)
-        const mainPath = worktrees.find(wt => wt.type === 'main')?.path
-        if (mainPath === undefined) {
-          throw new Error('Could not find main worktree')
-        }
-
-        // Switch the existing repository record to the main worktree path,
-        // preserving the id, alias, and other settings.
-        await dispatcher.switchWorktree(repository, mainPath)
-        await removeWorktree(mainPath, worktreePath)
-      } else {
-        await removeWorktree(repository.path, worktreePath)
-      }
-    } catch (e) {
-      dispatcher.postError(e)
-      this.setState({ isDeleting: false })
-      return
-    }
-
+    await this.props.onDeleteWorktree()
     this.props.onDismissed()
   }
 }

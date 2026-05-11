@@ -1024,6 +1024,17 @@ export class Dispatcher {
   }
 
   /**
+   * Delete a worktree. If the worktree being deleted is the currently selected
+   * one, the repository is switched to the main worktree first.
+   */
+  public deleteWorktree(
+    repository: Repository,
+    worktreePath: string
+  ): Promise<void> {
+    return this.appStore._deleteWorktree(repository, worktreePath)
+  }
+
+  /**
    * Set the width of the Push/Push toolbar button to the given value.
    * This affects the toolbar button and its dropdown element.
    *

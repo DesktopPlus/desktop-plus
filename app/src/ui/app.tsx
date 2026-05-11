@@ -2695,12 +2695,15 @@ export class App extends React.Component<IAppProps, IAppState> {
         )
       }
       case PopupType.DeleteWorktree: {
+        const repo = popup.repository
+        const wtPath = popup.worktreePath
         return (
           <DeleteWorktreeDialog
             key="delete-worktree"
-            repository={popup.repository}
-            worktreePath={popup.worktreePath}
-            dispatcher={this.props.dispatcher}
+            worktreePath={wtPath}
+            onDeleteWorktree={() =>
+              this.props.dispatcher.deleteWorktree(repo, wtPath)
+            }
             onDismissed={onPopupDismissedFn}
           />
         )
