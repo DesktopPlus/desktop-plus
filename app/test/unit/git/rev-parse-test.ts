@@ -107,14 +107,6 @@ describe('git/rev-parse', () => {
     it('returns bare for initialized bare repository', async t => {
       const path = await createTempDirectory(t)
       await exec(['init', '--bare'], path)
-      const { stderr, stdout } = await exec(
-        ['rev-parse', '--is-bare-repository', '--show-cdup', '--git-dir'],
-        path
-      )
-
-      // Lets's see what we're getting here
-      assert.equal(stdout + stderr, '')
-
       assert.deepEqual(await getRepositoryType(path), {
         kind: 'bare',
       })

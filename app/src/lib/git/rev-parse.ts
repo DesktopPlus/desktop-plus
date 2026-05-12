@@ -29,6 +29,11 @@ export async function getRepositoryType(path: string): Promise<RepositoryType> {
     )
 
     if (result.exitCode === 0) {
+      // Bare repositories will not include gitdir so we handle that separately
+      if (result.stdout.startsWith('true\n')) {
+        return { kind: 'bare' }
+      }
+
       // --is-bare-repository and --show-cdup each produce a single line but
       // --git-dir could theoretically contain newlines so we parse the known
       // fields first and treat the remainder as the git dir. We use [\s\S]*
