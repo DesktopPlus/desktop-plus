@@ -128,9 +128,11 @@ export class RefNameTextBox extends React.Component<
           ariaLabelledBy={this.props.ariaLabelledBy}
           ariaDescribedBy={ariaDescribedBy}
           autocompletionProviders={[this.props.autocompletionProvider]}
-          alwaysAutocomplete={true}
+          alwaysAutocomplete={this.state.proposedValue.length === 0}
           onValueChanged={this.onValueChange}
           completionSuffix=""
+          anchorToCaret={false}
+          anchorOffset={4}
         />
       )
     }

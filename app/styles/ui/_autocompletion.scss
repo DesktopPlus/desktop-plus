@@ -120,9 +120,13 @@
     height: 100%;
     width: 100%;
 
+    .icon {
+      flex-shrink: 0;
+      margin-right: var(--spacing-half);
+    }
+
     .title {
       @include ellipsis;
-      font-weight: var(--font-weight-semibold);
     }
   }
 

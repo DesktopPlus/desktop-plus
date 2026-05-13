@@ -4,6 +4,7 @@ import { IAutocompletionProvider } from './index'
 import { Branch } from '../../models/branch'
 import { HighlightText } from '../lib/highlight-text'
 import { match } from '../../lib/fuzzy-find'
+import { gitBranch, Octicon } from '../octicons'
 
 /** An autocompletion hit for a branch. */
 export interface IBranchHit {
@@ -36,7 +37,7 @@ export class BranchAutocompletionProvider
     text: string
   ): Promise<ReadonlyArray<IBranchHit>> {
     if (text.length === 0) {
-      return this.allBranches.slice(0, 25).map(b => ({
+      return this.allBranches.map(b => ({
         name: b.name,
         highlight: [],
       }))
@@ -44,7 +45,7 @@ export class BranchAutocompletionProvider
 
     const matches = match(text, this.allBranches, b => [b.name])
 
-    return matches.slice(0, 25).map(m => ({
+    return matches.map(m => ({
       name: m.item.name,
       highlight: m.matches.title,
     }))
@@ -53,6 +54,7 @@ export class BranchAutocompletionProvider
   public renderItem(item: IBranchHit): JSX.Element {
     return (
       <div className="branch">
+        <Octicon symbol={gitBranch} className="icon" />
         <div className="title">
           <HighlightText text={item.name} highlight={item.highlight} />
         </div>
