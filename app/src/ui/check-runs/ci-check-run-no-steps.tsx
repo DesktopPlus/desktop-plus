@@ -24,7 +24,7 @@ export class CICheckRunNoStepItem extends React.PureComponent<ICICheckRunNoStepP
             role="link"
           >
             View check details
-            <Octicon symbol={octicons.linkExternal} />
+            <Octicon className="ml" symbol={octicons.linkExternal} />
           </Button>
         </p>
 
