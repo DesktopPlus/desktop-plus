@@ -194,25 +194,7 @@ export class About extends React.Component<IAboutProps> {
   }
 
   private renderBetaLink() {
-    if (__RELEASE_CHANNEL__ === 'beta') {
-      return
-    }
-
-    if (__LINUX__) {
-      return
-    }
-
-    return (
-      <div>
-        <p className="no-padding">Looking for the latest features?</p>
-        <p className="no-padding">
-          Check out the{' '}
-          <LinkButton uri="https://desktop.github.com/beta">
-            Beta Channel
-          </LinkButton>
-        </p>
-      </div>
-    )
+    return
   }
 
   public render() {

@@ -1,9 +1,9 @@
 {
   "repository": {
     "type": "git",
-    "url": "https://github.com/desktop/desktop.git"
+    "url": "https://github.com/pol-rivero/github-desktop-plus.git"
   },
-  "description": "GitHub Desktop build dependencies",
+  "description": "GitHub Desktop Plus build dependencies",
   "scripts": {
     "cli": "ts-node app/src/cli/main.ts",
     "check:eslint": "tsc -P eslint-rules/",
@@ -51,8 +51,8 @@
     "validate-changelog": "ts-node -P script/tsconfig.json script/validate-changelog.ts"
   },
   "author": {
-    "name": "GitHub, Inc.",
-    "email": "opensource+desktop@github.com",
+    "name": "Pol Rivero",
+    "email": "github-desktop-plus@polrivero.com",
     "url": "https://desktop.github.com/"
   },
   "license": "MIT",
@@ -158,7 +158,7 @@
     "@types/webpack-bundle-analyzer": "^4.7.0",
     "@types/webpack-hot-middleware": "^2.25.9",
     "diff": "^8.0.3",
-    "electron": "40.8.1",
+    "electron": "42.0.1",
     "electron-builder": "^25.1.8",
     "electron-packager": "^17.1.1",
     "electron-winstaller": "^5.0.0",

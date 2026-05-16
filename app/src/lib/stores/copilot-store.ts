@@ -1,11 +1,17 @@
-import { CopilotClient } from '@github/copilot-sdk'
-import type { ModelInfo, SessionConfig } from '@github/copilot-sdk'
+import { CopilotClient, CopilotSession } from '@github/copilot-sdk'
+import type {
+  AssistantMessageEvent,
+  MessageOptions,
+  ModelInfo,
+  SessionConfig,
+} from '@github/copilot-sdk'
 import { AccountsStore } from './accounts-store'
 import { Account, isDotComAccount } from '../../models/account'
 import {
   ICopilotCommitMessage,
   parseCopilotCommitMessage,
 } from '../copilot-commit-message'
+import { getCopilotPaymentRequiredErrorFromSessionError } from '../copilot-error'
 import {
   CopilotValidationError,
   ConflictResolutionSystemPrompt,
@@ -449,6 +455,48 @@ export class CopilotStore extends BaseStore {
   }
 
   /**
+   * Sends a prompt on the given session and waits for the assistant
+   * response, while capturing any `session.error` events emitted during
+   * the round-trip.
+   *
+   * If the SDK emits a `session.error` whose upstream HTTP status code is
+   * 402 (Payment Required), the corresponding `CopilotError` is thrown
+   * instead of whatever {@link CopilotSession.sendAndWait} would have
+   * rejected with — the underlying rejection is intentionally swallowed
+   * because the SDK surfaces the same failure twice (once on the event
+   * channel, once on the awaited promise) and only the parsed 402 error
+   * carries actionable billing metadata for the UI.
+   *
+   * Any other `session.error` event is logged and otherwise ignored so
+   * the original `sendAndWait` rejection (or success) is propagated
+   * unchanged.
+   */
+  private async sendAndWait(
+    session: CopilotSession,
+    options: MessageOptions,
+    timeoutMs: number
+  ): Promise<AssistantMessageEvent | undefined> {
+    let paymentRequiredError: Error | undefined
+
+    const unsubscribe = session.on('session.error', e => {
+      const captured = getCopilotPaymentRequiredErrorFromSessionError(e.data)
+      if (captured !== null) {
+        paymentRequiredError = captured
+      } else {
+        log.error(`CopilotStore: Session error: ${e.toString()}`)
+      }
+    })
+
+    try {
+      return await session.sendAndWait(options, timeoutMs)
+    } catch (e) {
+      throw paymentRequiredError ?? e
+    } finally {
+      unsubscribe()
+    }
+  }
+
+  /**
    * Generates a commit message for the given diff using Copilot.
    *
    * @param diff The diff of changes to be committed, in git format
@@ -538,7 +586,9 @@ export class CopilotStore extends BaseStore {
         tags,
         cleanedRuleDescriptions
       )
-      const response = await session.sendAndWait(
+
+      const response = await this.sendAndWait(
+        session,
         { prompt: userPrompt },
         timeoutMs
       )
@@ -700,7 +750,7 @@ export class CopilotStore extends BaseStore {
           }),
         })
 
-        const response = await session.sendAndWait({ prompt }, 600_000)
+        const response = await this.sendAndWait(session, { prompt }, 600_000)
 
         if (!response || !response.data.content) {
           throw new Error('No response from Copilot')

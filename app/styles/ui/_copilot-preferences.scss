@@ -104,6 +104,11 @@
   // Tighter than the default dialog so the four sections fit nicely.
   --copilot-byok-section-gap: var(--spacing);
 
+  .dialog-content {
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+  }
+
   .copilot-byok-fieldset {
     border: none;
     padding: 0;

@@ -3,8 +3,8 @@
   "name": "github-desktop-plus",
   "desktopName": "github-desktop-plus",
   "productName": "GitHub Desktop Plus",
-  "bundleID": "com.github.GitHubClient",
-  "companyName": "GitHub, Inc.",
+  "bundleID": "com.polrivero.GitHubDesktopPlus",
+  "companyName": "Pol Rivero",
   "version": "3.5.9-beta2",
   "main": "./main.js",
   "repository": {
@@ -13,8 +13,8 @@
   },
   "description": "Simple collaboration from your desktop",
   "author": {
-    "name": "GitHub, Inc.",
-    "email": "opensource+desktop@github.com",
+    "name": "Pol Rivero",
+    "email": "github-desktop-plus@polrivero.com",
     "url": "https://desktop.github.com/"
   },
   "license": "MIT",

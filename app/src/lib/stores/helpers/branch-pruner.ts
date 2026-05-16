@@ -12,6 +12,7 @@ import {
   formatAsLocalRef,
   getBranches,
   deleteLocalBranch,
+  getWorktreeCheckedOutBranches,
 } from '../../git'
 import { fatalError } from '../../fatal-error'
 import { RepositoryStateCache } from '../repository-state-cache'
@@ -198,6 +199,11 @@ export class BranchPruner {
       await getBranches(this.repository, `refs/remotes/`)
     ).map(b => formatAsLocalRef(b.name))
 
+    // get branches checked out in linked worktrees so we don't delete them
+    const worktreeBranches = await getWorktreeCheckedOutBranches(
+      this.repository
+    )
+
     // create list of branches to be pruned
     const branchesReadyForPruning = Array.from(mergedBranches.keys()).filter(
       ref => {
@@ -205,6 +211,9 @@ export class BranchPruner {
           return false
         }
         if (recentlyCheckedOutCanonicalRefs.has(ref)) {
+          return false
+        }
+        if (worktreeBranches.has(ref)) {
           return false
         }
         const upstreamRef = getUpstreamRefForLocalBranchRef(ref, allBranches)

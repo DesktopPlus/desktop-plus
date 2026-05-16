@@ -1,6 +1,6 @@
-GitHub Desktop Plus v3.5.9-beta2
+GitHub Desktop Plus v3.5.9-beta3
 
-Upstream: [GitHub Desktop 3.5.9-beta2 release notes](https://github.com/desktop/desktop/releases/tag/release-3.5.9-beta2)
+Upstream: [GitHub Desktop 3.5.9-beta3 release notes](https://github.com/desktop/desktop/releases/tag/release-3.5.9-beta3)
 
 ---
 
@@ -19,3 +19,5 @@ Upstream: [GitHub Desktop 3.5.9-beta2 release notes](https://github.com/desktop/
 - Fixed an issue where the "Pull all" button in the repository list would ignore some repositories.
 
 - [#154] Opening files in Cursor (text editor) should now work correctly.
+
+- [#157] **macOS:** The app now uses the correct bundle identifier, instead of duplicating the one from GitHub Desktop.
