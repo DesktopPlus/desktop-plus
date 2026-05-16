@@ -1837,6 +1837,18 @@ export class AppStore extends TypedBaseStore<IAppState> {
         return
       }
 
+      // When the tip changed and the commit graph is active, its cached SHAs are
+      // stale (e.g. after amend or undo commit). Reload the graph so it reflects
+      // the new HEAD commit.
+      if (
+        currentSha !== null &&
+        previousTip !== null &&
+        currentSha !== previousTip &&
+        compareState.commitGraphRefs.length > 0
+      ) {
+        void this._commitGraph_load(repository, compareState.commitGraphRefs)
+      }
+
       // load initial group of commits for current branch
       const commits = await gitStore.loadCommitBatch('HEAD', 0, false)
 

@@ -66,6 +66,14 @@ interface ICommitListProps {
    */
   readonly allHistoryCommitSHAs?: ReadonlyArray<string>
 
+  /**
+   * The SHA of the HEAD commit (tip of the checked-out branch). When provided,
+   * this is used to identify the amendable/undoable commit instead of relying
+   * on position in allHistoryCommitSHAs (which may not have HEAD at index 0 in
+   * the commit graph view where multiple branches are shown).
+   */
+  readonly headCommitSha?: string
+
   /** Whether or not commits in this list can be undone. */
   readonly canUndoCommits?: boolean
 
@@ -840,8 +848,13 @@ export class CommitList extends React.Component<
     const actualRow =
       this.props.allHistoryCommitSHAs?.indexOf(commit.sha) ?? row
 
-    const canBeUndone = this.props.canUndoCommits === true && actualRow === 0
-    const canBeAmended = this.props.canAmendCommits === true && actualRow === 0
+    const isHeadCommit =
+      this.props.headCommitSha !== undefined
+        ? commit.sha === this.props.headCommitSha
+        : actualRow === 0
+
+    const canBeUndone = this.props.canUndoCommits === true && isHeadCommit
+    const canBeAmended = this.props.canAmendCommits === true && isHeadCommit
     // The user can reset to any commit up to the first non-local one (included).
     // They cannot reset to the most recent commit... because they're already
     // in it.

@@ -753,8 +753,9 @@ export class CommitGraphSidebar extends React.Component<
         shasToHighlight={this.props.shasToHighlight}
         localCommitSHAs={this.props.localCommitSHAs}
         canResetToCommits={!commitGraphIsTreeMode}
-        canUndoCommits={!commitGraphIsTreeMode}
-        canAmendCommits={!commitGraphIsTreeMode}
+        canUndoCommits={true}
+        canAmendCommits={true}
+        headCommitSha={this.props.currentTipSha ?? undefined}
         emoji={this.props.emoji}
         reorderingEnabled={!commitGraphIsTreeMode}
         onViewCommitOnGitHub={this.props.onViewCommitOnGitHub}
