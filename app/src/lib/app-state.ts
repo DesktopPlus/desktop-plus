@@ -200,6 +200,9 @@ export interface IAppState {
   /** The width of the commit summary column in the history view */
   readonly commitSummaryWidth: IConstrainedValue
 
+  /** The width of the branch list column in the commit graph view */
+  readonly commitGraphBranchListWidth: IConstrainedValue
+
   /** The width of the files list in the stash view */
   readonly stashedFilesWidth: IConstrainedValue
 
@@ -1013,6 +1016,21 @@ export interface ICompareState {
   readonly filteredHistoryCommitSHAs: ReadonlyArray<string>
 
   readonly allHistoryCommitSHAs: ReadonlyArray<string>
+
+  /** The branch refs used to build the current commit graph. */
+  readonly commitGraphRefs: ReadonlyArray<string>
+
+  /**
+   * The branch refs hidden from the commit graph for this repository, or null
+   * before they load.
+   */
+  readonly commitGraphHiddenBranchRefs: ReadonlyArray<string> | null
+
+  /** The branch groups collapsed in the commit graph branch list. */
+  readonly commitGraphCollapsedBranchGroups: ReadonlyArray<string>
+
+  /** The SHAs of commits to render in the commit graph. */
+  readonly commitGraphCommitSHAs: ReadonlyArray<string>
 
   readonly compareCommitSHAs: ReadonlyArray<string>
 

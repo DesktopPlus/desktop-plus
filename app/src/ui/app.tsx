@@ -3840,6 +3840,7 @@ export class App extends React.Component<IAppProps, IAppState> {
           emoji={state.emoji}
           sidebarWidth={state.sidebarWidth}
           commitSummaryWidth={state.commitSummaryWidth}
+          commitGraphBranchListWidth={state.commitGraphBranchListWidth}
           stashedFilesWidth={state.stashedFilesWidth}
           issuesStore={this.props.issuesStore}
           gitHubUserStore={this.props.gitHubUserStore}

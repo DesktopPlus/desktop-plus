@@ -108,6 +108,9 @@ import { normalizePath } from '../helpers/path'
 
 /** The number of commits to load from history per batch. */
 const CommitBatchSize = 100
+
+/** The commit graph needs more parent context to avoid lane reflow. */
+const commitGraph_CommitBatchSize = 500
 const CommitBatchSizeSearch = 500
 
 const LoadingHistoryRequestKey = 'history'
@@ -243,6 +246,44 @@ export class GitStore extends BaseStore {
     const batchSize = isSearching ? CommitBatchSizeSearch : CommitBatchSize
     const commits = await this.performFailableOperation(() =>
       getCommits(this.repository, commitish, batchSize, skip)
+    )
+
+    this.requestsInFight.delete(requestKey)
+    if (!commits) {
+      return null
+    }
+
+    this.storeCommits(commits)
+    return commits.map(c => c.sha)
+  }
+
+  /** Load a batch of commits reachable from a set of branch refs. */
+  public async commitGraph_loadCommitBatch(
+    refs: ReadonlyArray<string>,
+    skip: number,
+    isSearching: boolean
+  ) {
+    if (this.requestsInFight.has(LoadingHistoryRequestKey)) {
+      return null
+    }
+
+    const refsKey = refs.join('\0')
+    const requestKey = `history/graph/${refsKey}/skip/${skip}`
+    if (this.requestsInFight.has(requestKey)) {
+      return null
+    }
+
+    this.requestsInFight.add(requestKey)
+
+    const batchSize = isSearching
+      ? CommitBatchSizeSearch
+      : commitGraph_CommitBatchSize
+    const revisionArgs = refs.length > 0 ? refs : ['--all']
+    const commits = await this.performFailableOperation(() =>
+      getCommits(this.repository, undefined, batchSize, skip, [
+        '--topo-order',
+        ...revisionArgs,
+      ])
     )
 
     this.requestsInFight.delete(requestKey)

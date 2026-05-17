@@ -297,6 +297,15 @@ import { MergeTreeResult } from '../../models/merge'
 import { promiseWithMinimumTimeout } from '../promise'
 import { BackgroundFetcher } from './helpers/background-fetcher'
 import { RepositoryStateCache } from './repository-state-cache'
+import {
+  commitGraph_DefaultBranchListWidth,
+  commitGraph_getCommitSelectionCandidates,
+  commitGraph_getStoredCollapsedBranchGroups,
+  commitGraph_getStoredHiddenBranchRefs,
+  commitGraph_BranchListWidthConfigKey,
+  commitGraph_setStoredCollapsedBranchGroups,
+  commitGraph_setStoredHiddenBranchRefs,
+} from './commit-graph-state'
 import { readEmoji } from '../read-emoji'
 import { Emoji } from '../emoji'
 import { GitStoreCache } from './git-store-cache'
@@ -631,6 +640,9 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
   private sidebarWidth = constrain(defaultSidebarWidth)
   private commitSummaryWidth = constrain(defaultCommitSummaryWidth)
+  private commitGraphBranchListWidth = constrain(
+    commitGraph_DefaultBranchListWidth
+  )
   private stashedFilesWidth = constrain(defaultStashedFilesWidth)
   private pullRequestFileListWidth = constrain(defaultPullRequestFileListWidth)
   private branchDropdownWidth = constrain(defaultBranchDropdownWidth)
@@ -1267,6 +1279,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       worktreeDropdownWidth: this.worktreeDropdownWidth,
       pushPullButtonWidth: this.pushPullButtonWidth,
       commitSummaryWidth: this.commitSummaryWidth,
+      commitGraphBranchListWidth: this.commitGraphBranchListWidth,
       stashedFilesWidth: this.stashedFilesWidth,
       pullRequestFilesListWidth: this.pullRequestFileListWidth,
       appMenuState: this.appMenu ? this.appMenu.openMenus : [],
@@ -1768,6 +1781,15 @@ export class AppStore extends TypedBaseStore<IAppState> {
       branches,
       recentBranches,
       defaultBranch,
+      commitGraphHiddenBranchRefs: commitGraph_getStoredHiddenBranchRefs(
+        repository,
+        branchesState.allBranches,
+        currentBranch,
+        cachedDefaultBranch,
+        state.localTags
+      ),
+      commitGraphCollapsedBranchGroups:
+        commitGraph_getStoredCollapsedBranchGroups(repository),
     }))
 
     const cachedState = compareState.formState
@@ -1813,6 +1835,18 @@ export class AppStore extends TypedBaseStore<IAppState> {
         // don't refresh the history view here because we know nothing important
         // has changed and we don't want to rebuild this state
         return
+      }
+
+      // When the tip changed and the commit graph is active, its cached SHAs are
+      // stale (e.g. after amend or undo commit). Reload the graph so it reflects
+      // the new HEAD commit.
+      if (
+        currentSha !== null &&
+        previousTip !== null &&
+        currentSha !== previousTip &&
+        compareState.commitGraphRefs.length > 0
+      ) {
+        void this._commitGraph_load(repository, compareState.commitGraphRefs)
       }
 
       // load initial group of commits for current branch
@@ -2043,6 +2077,210 @@ export class AppStore extends TypedBaseStore<IAppState> {
       )
     }
     return
+  }
+
+  /** This shouldn't be called directly. See `Dispatcher`. */
+  public async _commitGraph_load(
+    repository: Repository,
+    refs: ReadonlyArray<string>
+  ): Promise<void> {
+    // Preserve selections that were already visible before this graph reload.
+    const stateBeforeLoad = this.repositoryStateCache.get(repository)
+    const commitGraphPreviousCommitCount =
+      stateBeforeLoad.compareState.commitGraphCommitSHAs.length
+
+    this.repositoryStateCache.updateCompareState(repository, () => ({
+      commitGraphRefs: refs,
+      commitGraphCommitSHAs: [],
+    }))
+    this.emitUpdate()
+
+    if (refs.length === 0) {
+      return
+    }
+
+    const gitStore = this.gitStoreCache.get(repository)
+    let commits: ReadonlyArray<string> | null =
+      await gitStore.commitGraph_loadCommitBatch(refs, 0, false)
+
+    if (commits === null) {
+      return
+    }
+
+    const stateAfterLoad = this.repositoryStateCache.get(repository)
+
+    if (!arrayEquals(stateAfterLoad.compareState.commitGraphRefs, refs)) {
+      return
+    }
+
+    commits = await this.commitGraph_loadToPreviousSelection(
+      repository,
+      refs,
+      commits,
+      commitGraphPreviousCommitCount
+    )
+
+    if (commits === null) {
+      return
+    }
+
+    this.repositoryStateCache.updateCompareState(repository, () => ({
+      commitGraphCommitSHAs: commits,
+    }))
+
+    this.updateOrSelectFirstCommit(repository, commits)
+    this.emitUpdate()
+  }
+
+  private async commitGraph_loadToPreviousSelection(
+    repository: Repository,
+    refs: ReadonlyArray<string>,
+    initialCommits: ReadonlyArray<string>,
+    commitGraphPreviousCommitCount: number
+  ): Promise<ReadonlyArray<string> | null> {
+    const selectedSHA =
+      this.repositoryStateCache.get(repository).commitSelection.shas[0]
+
+    if (
+      selectedSHA === undefined ||
+      initialCommits.includes(selectedSHA) ||
+      initialCommits.length >= commitGraphPreviousCommitCount
+    ) {
+      return initialCommits
+    }
+
+    const gitStore = this.gitStoreCache.get(repository)
+    let commits = initialCommits
+
+    while (
+      commits.length < commitGraphPreviousCommitCount &&
+      !commits.includes(selectedSHA)
+    ) {
+      const nextCommits = await gitStore.commitGraph_loadCommitBatch(
+        refs,
+        commits.length,
+        false
+      )
+
+      if (nextCommits === null || nextCommits.length === 0) {
+        return commits
+      }
+
+      const stateAfterLoad = this.repositoryStateCache.get(repository)
+
+      if (!arrayEquals(stateAfterLoad.compareState.commitGraphRefs, refs)) {
+        return null
+      }
+
+      commits = commits.concat(nextCommits)
+    }
+
+    return commits
+  }
+
+  /** This shouldn't be called directly. See `Dispatcher`. */
+  public _commitGraph_setHiddenBranchRefs(
+    repository: Repository,
+    hiddenBranchRefs: ReadonlyArray<string>
+  ) {
+    commitGraph_setStoredHiddenBranchRefs(repository, hiddenBranchRefs)
+
+    this.repositoryStateCache.updateCompareState(repository, () => ({
+      commitGraphHiddenBranchRefs: hiddenBranchRefs,
+    }))
+
+    this.emitUpdate()
+  }
+
+  /** This shouldn't be called directly. See `Dispatcher`. */
+  public _commitGraph_setCollapsedBranchGroups(
+    repository: Repository,
+    collapsedBranchGroups: ReadonlyArray<string>
+  ) {
+    commitGraph_setStoredCollapsedBranchGroups(
+      repository,
+      collapsedBranchGroups
+    )
+
+    this.repositoryStateCache.updateCompareState(repository, () => ({
+      commitGraphCollapsedBranchGroups: collapsedBranchGroups,
+    }))
+
+    this.emitUpdate()
+  }
+
+  /** This shouldn't be called directly. See `Dispatcher`. */
+  public async _commitGraph_loadNextCommitBatch(
+    repository: Repository
+  ): Promise<void> {
+    const gitStore = this.gitStoreCache.get(repository)
+    const state = this.repositoryStateCache.get(repository)
+    const { commitGraphRefs, commitGraphCommitSHAs } = state.compareState
+
+    if (commitGraphRefs.length === 0) {
+      return
+    }
+
+    const queryTextLowercase =
+      state.compareState.commitSearchQuery.toLowerCase()
+
+    if (queryTextLowercase.length > 0) {
+      // Graph search filters in memory, so continue paging until the loaded
+      // graph has enough matches or Git reports no more commits.
+      const commitGraphFilteredCommitCount = commitGraphCommitSHAs.filter(sha =>
+        this.commitIsIncluded(
+          gitStore.commitLookup.get(sha),
+          queryTextLowercase
+        )
+      ).length
+
+      if (commitGraphFilteredCommitCount >= MinimumFilteredCommitsToLoad) {
+        return
+      }
+    }
+
+    const newCommits = await gitStore.commitGraph_loadCommitBatch(
+      commitGraphRefs,
+      commitGraphCommitSHAs.length,
+      !!queryTextLowercase
+    )
+
+    if (!newCommits || newCommits.length === 0) {
+      return
+    }
+
+    const stateAfterLoad = this.repositoryStateCache.get(repository)
+
+    if (
+      !arrayEquals(stateAfterLoad.compareState.commitGraphRefs, commitGraphRefs)
+    ) {
+      return
+    }
+
+    this.repositoryStateCache.updateCompareState(repository, () => ({
+      commitGraphCommitSHAs:
+        stateAfterLoad.compareState.commitGraphCommitSHAs.concat(newCommits),
+    }))
+
+    this.emitUpdate()
+
+    const latestState = this.repositoryStateCache.get(repository)
+    const latestQueryTextLowercase =
+      latestState.compareState.commitSearchQuery.toLowerCase()
+
+    if (latestQueryTextLowercase.length > 0) {
+      const commitGraphFilteredCommitCount =
+        latestState.compareState.commitGraphCommitSHAs.filter(sha =>
+          this.commitIsIncluded(
+            gitStore.commitLookup.get(sha),
+            latestQueryTextLowercase
+          )
+        ).length
+
+      if (commitGraphFilteredCommitCount < MinimumFilteredCommitsToLoad) {
+        return this._commitGraph_loadNextCommitBatch(repository)
+      }
+    }
   }
 
   private commitIsIncluded(
@@ -2614,6 +2852,12 @@ export class AppStore extends TypedBaseStore<IAppState> {
     this.commitSummaryWidth = constrain(
       getNumber(commitSummaryWidthConfigKey, defaultCommitSummaryWidth)
     )
+    this.commitGraphBranchListWidth = constrain(
+      getNumber(
+        commitGraph_BranchListWidthConfigKey,
+        commitGraph_DefaultBranchListWidth
+      )
+    )
     this.stashedFilesWidth = constrain(
       getNumber(stashedFilesWidthConfigKey, defaultStashedFilesWidth)
     )
@@ -2885,6 +3129,11 @@ export class AppStore extends TypedBaseStore<IAppState> {
     const filesMax = available - diffPaneMinWidth
 
     this.commitSummaryWidth = constrain(this.commitSummaryWidth, 100, filesMax)
+    this.commitGraphBranchListWidth = constrain(
+      this.commitGraphBranchListWidth,
+      120,
+      filesMax
+    )
     this.stashedFilesWidth = constrain(this.stashedFilesWidth, 100, filesMax)
 
     // Allocate worktree first (highest priority), then branch, then
@@ -4228,6 +4477,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
     ])
 
     await gitStore.refreshTags()
+    this.updateLocalTags(repository)
 
     // this promise is fire-and-forget, so no need to await it
     this.updateStashEntryCountMetric(
@@ -4623,9 +4873,16 @@ export class AppStore extends TypedBaseStore<IAppState> {
       await gitStore.loadLocalCommits(tip.branch)
     }
 
+    const latestState = this.repositoryStateCache.get(repository)
+    const { commitGraphCommitSHAs, commitGraphRefs } = latestState.compareState
+    const commitGraphSelectionCandidates =
+      commitGraphRefs.length > 0 || commitGraphCommitSHAs.length > 0
+        ? commitGraph_getCommitSelectionCandidates(latestState)
+        : state.compareState.allHistoryCommitSHAs
+
     return this.updateOrSelectFirstCommit(
       repository,
-      state.compareState.allHistoryCommitSHAs
+      commitGraphSelectionCandidates
     )
   }
 
@@ -4793,6 +5050,17 @@ export class AppStore extends TypedBaseStore<IAppState> {
   public async _deleteTag(repository: Repository, name: string) {
     const gitStore = this.gitStoreCache.get(repository)
     await gitStore.deleteTag(name)
+  }
+
+  private updateLocalTags(repository: Repository) {
+    const gitStore = this.gitStoreCache.get(repository)
+
+    this.repositoryStateCache.update(repository, () => ({
+      localTags: gitStore.localTags,
+      tagsToPush: gitStore.tagsToPush,
+    }))
+
+    this.emitUpdate()
   }
 
   private updateCheckoutProgress(
@@ -6537,6 +6805,30 @@ export class AppStore extends TypedBaseStore<IAppState> {
       value: defaultCommitSummaryWidth,
     }
     localStorage.removeItem(commitSummaryWidthConfigKey)
+    this.updateResizableConstraints()
+    this.emitUpdate()
+
+    return Promise.resolve()
+  }
+
+  public _commitGraph_setBranchListWidth(width: number): Promise<void> {
+    this.commitGraphBranchListWidth = {
+      ...this.commitGraphBranchListWidth,
+      value: width,
+    }
+    setNumber(commitGraph_BranchListWidthConfigKey, width)
+    this.updateResizableConstraints()
+    this.emitUpdate()
+
+    return Promise.resolve()
+  }
+
+  public _commitGraph_resetBranchListWidth(): Promise<void> {
+    this.commitGraphBranchListWidth = {
+      ...this.commitGraphBranchListWidth,
+      value: commitGraph_DefaultBranchListWidth,
+    }
+    localStorage.removeItem(commitGraph_BranchListWidthConfigKey)
     this.updateResizableConstraints()
     this.emitUpdate()
 

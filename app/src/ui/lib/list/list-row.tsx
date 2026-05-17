@@ -182,6 +182,15 @@ export class ListRow extends React.Component<IListRowProps, {}> {
   private onRowRef = (elem: HTMLDivElement | null) => {
     if (elem) {
       this.listItemRef = createObservableRef(elem)
+
+      if (
+        this.props.renderRowFocusTooltip !== undefined &&
+        enableAccessibleListToolTips()
+      ) {
+        // Tree/List switches remount rows after the first render, so re-render
+        // once the row ref exists for tooltip hover listeners and positioning.
+        this.forceUpdate()
+      }
     }
     this.props.onRowRef?.(this.props.rowIndex, elem)
   }

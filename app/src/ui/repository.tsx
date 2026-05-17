@@ -7,7 +7,7 @@ import { Changes, ChangesSidebar } from './changes'
 import { NoChanges } from './changes/no-changes'
 import { MultipleSelection } from './changes/multiple-selection'
 import { FilesChangedBadge } from './changes/files-changed-badge'
-import { SelectedCommits, CompareSidebar } from './history'
+import { SelectedCommits, CompareSidebar, CommitGraphSidebar } from './history'
 import { Resizable } from './resizable'
 import { TabBar } from './tab-bar'
 import {
@@ -47,6 +47,7 @@ interface IRepositoryViewProps {
   readonly emoji: Map<string, Emoji>
   readonly sidebarWidth: IConstrainedValue
   readonly commitSummaryWidth: IConstrainedValue
+  readonly commitGraphBranchListWidth: IConstrainedValue
   readonly stashedFilesWidth: IConstrainedValue
   readonly issuesStore: IssuesStore
   readonly gitHubUserStore: GitHubUserStore
@@ -183,6 +184,7 @@ export class RepositoryView extends React.Component<
   private forceCompareListScrollTop: boolean = false
 
   private readonly historySidebarRef = React.createRef<CompareSidebar>()
+  private readonly commitGraphSidebarRef = React.createRef<CommitGraphSidebar>()
   private readonly changesSidebarRef = React.createRef<ChangesSidebar>()
   private readonly compareSidebarRef = React.createRef<CompareSidebar>()
 
@@ -401,8 +403,7 @@ export class RepositoryView extends React.Component<
   }
 
   private renderHistorySidebar(): JSX.Element {
-    const { repository, dispatcher, state, aheadBehindStore, emoji } =
-      this.props
+    const { repository, dispatcher, state, emoji } = this.props
     const {
       remote,
       compareState,
@@ -416,6 +417,12 @@ export class RepositoryView extends React.Component<
     } = state
     const { tip } = branchesState
     const currentBranch = tip.kind === TipState.Valid ? tip.branch : null
+    const currentTipSha =
+      tip.kind === TipState.Valid
+        ? tip.branch.tip.sha
+        : tip.kind === TipState.Detached
+        ? tip.currentSha
+        : null
     const scrollTop =
       this.forceCompareListScrollTop ||
       this.previousSection !== RepositorySectionTab.History
@@ -425,16 +432,17 @@ export class RepositoryView extends React.Component<
     this.forceCompareListScrollTop = false
 
     return (
-      <CompareSidebar
-        ref={this.historySidebarRef}
-        isCompareView={false}
+      <CommitGraphSidebar
+        ref={this.commitGraphSidebarRef}
         repository={repository}
         isLocalRepository={remote === null}
         compareState={compareState}
-        branchSortOrder={this.props.branchSortOrder}
+        commitGraphBranchListWidth={this.props.commitGraphBranchListWidth}
         selectedCommitShas={shas}
         shasToHighlight={compareState.shasToHighlight}
         currentBranch={currentBranch}
+        currentTipSha={currentTipSha}
+        allBranches={branchesState.allBranches}
         emoji={emoji}
         commitLookup={commitLookup}
         localCommitSHAs={localCommitSHAs}
@@ -447,7 +455,6 @@ export class RepositoryView extends React.Component<
         onCherryPick={this.props.onCherryPick}
         compareListScrollTop={scrollTop}
         tagsToPush={tagsToPush}
-        aheadBehindStore={aheadBehindStore}
         isMultiCommitOperationInProgress={mcos !== null}
         preferAbsoluteDates={this.props.preferAbsoluteDates}
         askForConfirmationOnCheckoutCommit={
@@ -825,6 +832,7 @@ export class RepositoryView extends React.Component<
     if (this.focusHistoryNeeded) {
       this.focusHistoryNeeded = false
       this.historySidebarRef.current?.focusHistory()
+      this.commitGraphSidebarRef.current?.focusHistory()
     }
 
     if (this.focusCompareNeeded) {

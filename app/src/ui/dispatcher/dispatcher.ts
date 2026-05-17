@@ -260,6 +260,39 @@ export class Dispatcher {
     return this.appStore._loadNextCommitBatch(repository, 0)
   }
 
+  public commitGraph_load(
+    repository: Repository,
+    refs: ReadonlyArray<string>
+  ): Promise<void> {
+    return this.appStore._commitGraph_load(repository, refs)
+  }
+
+  public commitGraph_setHiddenBranchRefs(
+    repository: Repository,
+    hiddenBranchRefs: ReadonlyArray<string>
+  ) {
+    return this.appStore._commitGraph_setHiddenBranchRefs(
+      repository,
+      hiddenBranchRefs
+    )
+  }
+
+  public commitGraph_setCollapsedBranchGroups(
+    repository: Repository,
+    collapsedBranchGroups: ReadonlyArray<string>
+  ) {
+    return this.appStore._commitGraph_setCollapsedBranchGroups(
+      repository,
+      collapsedBranchGroups
+    )
+  }
+
+  public commitGraph_loadNextCommitBatch(
+    repository: Repository
+  ): Promise<void> {
+    return this.appStore._commitGraph_loadNextCommitBatch(repository)
+  }
+
   /** Update the commit search filter text. */
   public setCommitSearchQuery(
     repository: Repository,
@@ -1186,6 +1219,14 @@ export class Dispatcher {
    */
   public resetCommitSummaryWidth(): Promise<void> {
     return this.appStore._resetCommitSummaryWidth()
+  }
+
+  public commitGraph_setBranchListWidth(width: number): Promise<void> {
+    return this.appStore._commitGraph_setBranchListWidth(width)
+  }
+
+  public commitGraph_resetBranchListWidth(): Promise<void> {
+    return this.appStore._commitGraph_resetBranchListWidth()
   }
 
   /** Update the repository's issues from GitHub. */
