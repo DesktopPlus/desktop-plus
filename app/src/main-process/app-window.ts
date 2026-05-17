@@ -8,7 +8,6 @@ import {
 } from 'electron'
 import { shell } from '../lib/app-shell'
 import { Emitter, Disposable } from 'event-kit'
-import { join } from 'path'
 import { encodePathAsUrl } from '../lib/path'
 import {
   getWindowState,
@@ -20,6 +19,7 @@ import { URLActionType } from '../lib/parse-app-url'
 import { ILaunchStats } from '../lib/stats'
 import { menuFromElectronMenu } from '../models/app-menu'
 import { now } from './now'
+import * as path from 'path'
 import windowStateKeeper from 'electron-window-state'
 import * as ipcMain from './ipc-main'
 import * as ipcWebContents from './ipc-webcontents'
@@ -83,7 +83,12 @@ export class AppWindow {
       if (config.titleBarStyle === 'custom') {
         windowOptions.frame = false
       }
-      windowOptions.icon = join(__dirname, 'static', 'logos', '512x512.png')
+      windowOptions.icon = path.join(
+        __dirname,
+        'static',
+        'logos',
+        '512x512.png'
+      )
       windowOptions.autoHideMenuBar =
         config.titleBarStyle === 'native-without-menu-bar'
 

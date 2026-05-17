@@ -3327,13 +3327,15 @@ export class AppStore extends TypedBaseStore<IAppState> {
     const isStashedChangesVisible =
       changesState.selection.kind === ChangesSelectionKind.Stash
 
+    const askForConfirmationWhenStashingAllChanges = false
+
     updatePreferredAppMenuItemLabels({
       ...labels,
       contributionTargetDefaultBranch,
       isForcePushForCurrentRepository,
       isStashedChangesVisible,
       hasCurrentPullRequest: currentPullRequest !== null,
-      askForConfirmationWhenStashingAllChanges: false,
+      askForConfirmationWhenStashingAllChanges,
     })
   }
 
@@ -4582,10 +4584,10 @@ export class AppStore extends TypedBaseStore<IAppState> {
   /**
    * Update the repository sidebar indicator for the repository
    */
-  private updateSidebarIndicator(
+  private async updateSidebarIndicator(
     repository: Repository,
     status: IStatusResult | null
-  ): void {
+  ): Promise<void> {
     const lookup = this.localRepositoryStateLookup
 
     if (repository.missing) {
@@ -5378,7 +5380,6 @@ export class AppStore extends TypedBaseStore<IAppState> {
     }
 
     const { account, owner, name } = match
-
     const { endpoint } = account
     const api = API.fromAccount(account)
     const apiRepo = await api.fetchRepository(owner, name)
@@ -5493,69 +5494,6 @@ export class AppStore extends TypedBaseStore<IAppState> {
     newAlias: string | null
   ): Promise<void> {
     return this.repositoriesStore.updateRepositoryAlias(repository, newAlias)
-  }
-
-  /** This shouldn't be called directly. See `Dispatcher`. */
-  public async _changeRepositoryGroupName(
-    repository: Repository,
-    newGroupName: string | null
-  ): Promise<void> {
-    const mainPath = normalizePath(
-      repository.isLinkedWorktree
-        ? repository.mainWorktreePath
-        : repository.path
-    )
-    const reposToUpdate = this.repositories.filter(
-      r =>
-        normalizePath(r.path) === mainPath ||
-        (r.isLinkedWorktree && normalizePath(r.mainWorktreePath) === mainPath)
-    )
-    return this.repositoriesStore.updateRepositoryGroupName(
-      reposToUpdate,
-      newGroupName
-    )
-  }
-
-  /** This shouldn't be called directly. See `Dispatcher`. */
-  public async _updateRepositoryDefaultBranch(
-    repository: Repository,
-    defaultBranch: string | null
-  ): Promise<void> {
-    const repo = await this.repositoriesStore.updateRepositoryDefaultBranch(
-      repository,
-      defaultBranch
-    )
-    await this._refreshRepository(repo)
-  }
-
-  /** This shouldn't be called directly. See `Dispatcher`. */
-  public async _updateRepositoryAccount(
-    repository: Repository,
-    account: Account | null
-  ): Promise<void> {
-    if (repository.gitHubRepository && account === null) {
-      await this.repositoriesStore.clearGitHubRepositoryLogin(
-        repository.gitHubRepository
-      )
-    }
-    const repo = await this.repositoriesStore.updateRepositoryAccount(
-      repository,
-      account
-    )
-    const refreshedRepo = await this.repositoryWithRefreshedGitHubRepository(
-      repo
-    )
-    await this._refreshRepository(refreshedRepo)
-  }
-
-  public async _updateRepositoryEditorOverride(
-    repository: Repository,
-    customEditorOverride: EditorOverride | null
-  ): Promise<void> {
-    await this.repositoriesStore.updateRepositoryEditorOverride(
-      repository,
-      customEditorOverride
-    )
   }
 
   /** This shouldn't be called directly. See `Dispatcher`. */
@@ -5742,6 +5680,69 @@ export class AppStore extends TypedBaseStore<IAppState> {
     }
 
     return branchToCheckout
+  }
+
+  /** This shouldn't be called directly. See `Dispatcher`. */
+  public async _changeRepositoryGroupName(
+    repository: Repository,
+    newGroupName: string | null
+  ): Promise<void> {
+    const mainPath = normalizePath(
+      repository.isLinkedWorktree
+        ? repository.mainWorktreePath
+        : repository.path
+    )
+    const reposToUpdate = this.repositories.filter(
+      r =>
+        normalizePath(r.path) === mainPath ||
+        (r.isLinkedWorktree && normalizePath(r.mainWorktreePath) === mainPath)
+    )
+    return this.repositoriesStore.updateRepositoryGroupName(
+      reposToUpdate,
+      newGroupName
+    )
+  }
+
+  /** This shouldn't be called directly. See `Dispatcher`. */
+  public async _updateRepositoryDefaultBranch(
+    repository: Repository,
+    defaultBranch: string | null
+  ): Promise<void> {
+    const repo = await this.repositoriesStore.updateRepositoryDefaultBranch(
+      repository,
+      defaultBranch
+    )
+    await this._refreshRepository(repo)
+  }
+
+  /** This shouldn't be called directly. See `Dispatcher`. */
+  public async _updateRepositoryAccount(
+    repository: Repository,
+    account: Account | null
+  ): Promise<void> {
+    if (repository.gitHubRepository && account === null) {
+      await this.repositoriesStore.clearGitHubRepositoryLogin(
+        repository.gitHubRepository
+      )
+    }
+    const repo = await this.repositoriesStore.updateRepositoryAccount(
+      repository,
+      account
+    )
+    const refreshedRepo = await this.repositoryWithRefreshedGitHubRepository(
+      repo
+    )
+    await this._refreshRepository(refreshedRepo)
+  }
+
+  public async _updateRepositoryEditorOverride(
+    repository: Repository,
+    customEditorOverride: EditorOverride | null
+  ): Promise<void> {
+    await this.repositoriesStore.updateRepositoryEditorOverride(
+      repository,
+      customEditorOverride
+    )
   }
 
   private updatePushPullFetchProgress(

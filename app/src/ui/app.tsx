@@ -1653,9 +1653,16 @@ export class App extends React.Component<IAppProps, IAppState> {
           />
         )
       case PopupType.ConfirmDiscardChanges:
-        const showSetting = popup.showDiscardChangesSetting ?? true
-        const discardingAllChanges = popup.discardingAllChanges ?? false
+        const showSetting =
+          popup.showDiscardChangesSetting === undefined
+            ? true
+            : popup.showDiscardChangesSetting
+        const discardingAllChanges =
+          popup.discardingAllChanges === undefined
+            ? false
+            : popup.discardingAllChanges
         const permanentlyDelete = popup.permanentlyDelete ?? false
+
         return (
           <DiscardChanges
             key="discard-changes"
@@ -2266,12 +2273,12 @@ export class App extends React.Component<IAppProps, IAppState> {
       }
       case PopupType.LocalChangesOverwritten:
         // Now that we support multiple stashes, lie to the dialog so that it always shows the "stash changes" option.
-        const existingStash = false
+        const existingStash = null
         return (
           <LocalChangesOverwrittenDialog
             repository={popup.repository}
             dispatcher={this.props.dispatcher}
-            hasExistingStash={existingStash}
+            hasExistingStash={existingStash !== null}
             retryAction={popup.retryAction}
             onDismissed={onPopupDismissedFn}
             files={popup.files}
