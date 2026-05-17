@@ -6,7 +6,7 @@ const run = (...args: Array<string>) => {
   function cb(e: unknown | null, stderr?: string) {
     if (e) {
       console.error(`Error running command ${args}`)
-      console.error(stderr || `${e}`)
+      console.error(stderr ?? `${e}`)
       process.exit(
         typeof e === 'object' && 'code' in e && typeof e.code === 'number'
           ? e.code

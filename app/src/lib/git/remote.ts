@@ -6,6 +6,7 @@ import { IRemote } from '../../models/remote'
 import { envForRemoteOperation } from './environment'
 import { getSymbolicRef } from './refs'
 import memoizeOne from 'memoize-one'
+
 /**
  * List the remotes, sorted alphabetically by `name`, for a repository.
  */

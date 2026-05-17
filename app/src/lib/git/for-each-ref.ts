@@ -42,7 +42,7 @@ export async function getBranches(
     return []
   }
 
-  const branches: Branch[] = []
+  const branches = []
 
   for (const ref of parse(result.stdout)) {
     // excude symbolic refs from the branch list

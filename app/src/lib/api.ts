@@ -181,7 +181,8 @@ const oauthScopes = ['repo', 'user', 'workflow']
  * Information about a repository as returned by the GitHub API.
  */
 export interface IAPIRepository {
-  readonly clone_url: string // blank if unknown
+  // blank if unknown
+  readonly clone_url: string
   readonly ssh_url: string
   readonly html_url: string
   readonly name: string
@@ -2063,7 +2064,7 @@ export class API {
     reloadCache: boolean = false
   ): Promise<IAPIRefStatus | null> {
     const safeRef = encodeURIComponent(ref)
-    const path = `repos/${owner}/${name}/commits/${safeRef}/status?${this.perPageParamName}=${this.maxPerPage}`
+    const path = `repos/${owner}/${name}/commits/${safeRef}/status?per_page=100`
     const response = await this.ghRequest('GET', path, {
       reloadCache,
     })
@@ -2089,7 +2090,7 @@ export class API {
     reloadCache: boolean = false
   ): Promise<IAPIRefCheckRuns | null> {
     const safeRef = encodeURIComponent(ref)
-    const path = `repos/${owner}/${name}/commits/${safeRef}/check-runs?${this.perPageParamName}=${this.maxPerPage}`
+    const path = `repos/${owner}/${name}/commits/${safeRef}/check-runs?per_page=100`
     const headers = {
       Accept: 'application/vnd.github.antiope-preview+json',
     }
@@ -2936,6 +2937,453 @@ export class API {
   }
 }
 
+export async function deleteToken(account: Account) {
+  try {
+    const creds = Buffer.from(`${ClientID}:${ClientSecret}`).toString('base64')
+    const response = await request(
+      account.endpoint,
+      null,
+      'DELETE',
+      `applications/${ClientID}/token`,
+      { access_token: account.token },
+      { Authorization: `Basic ${creds}` }
+    )
+
+    return response.status === 204
+  } catch (e) {
+    log.error(`deleteToken: failed with endpoint ${account.endpoint}`, e)
+    return false
+  }
+}
+
+/** Fetch the user authenticated by the token. */
+export async function fetchUser(
+  endpoint: string,
+  token: string,
+  refreshToken: string,
+  expiresAt: number,
+  login: string | UnknownLogin
+): Promise<Account> {
+  let api: API
+  if (endpoint === getBitbucketAPIEndpoint()) {
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+    api = new BitbucketAPI(token, login, refreshToken, expiresAt)
+  } else if (endpoint === getGitLabAPIEndpoint()) {
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+    api = GitLabAPI.get(token, login, refreshToken, expiresAt)
+  } else {
+    api = new API(endpoint, token, login)
+  }
+  try {
+    const [user, emails, copilotInfo, features] = await Promise.all([
+      api.fetchAccount(),
+      api.fetchEmails(),
+      api.fetchUserCopilotInfo(),
+      api.fetchFeatureFlags(),
+    ])
+
+    return new Account(
+      user.login,
+      endpoint,
+      api.getToken(), // Grab it back from the API because it may have been refreshed
+      api.getRefreshToken(),
+      api.getExpiresAt(),
+      emails,
+      user.avatar_url,
+      user.id,
+      user.name || user.login,
+      user.plan?.name,
+      copilotInfo?.copilotEndpoint,
+      copilotInfo?.isCopilotDesktopEnabled,
+      features
+    )
+  } catch (e) {
+    log.warn(`fetchUser: failed with endpoint ${endpoint}`, e)
+    throw e
+  }
+}
+
+function toExpiresAt(expiresInSeconds: number) {
+  return Date.now() + expiresInSeconds * 900 // 10% safety buffer
+}
+
+/**
+ * Map a repository's URL to the endpoint associated with it. For example:
+ *
+ * https://github.com/desktop/desktop -> https://api.github.com
+ * http://github.mycompany.com/my-team/my-project -> http://github.mycompany.com/api
+ */
+export function getEndpointForRepository(url: string): string | null {
+  const parsed = parseRemote(url)
+  if (!parsed) {
+    log.warn(`getEndpointForRepository: failed to parse url ${url}`)
+    return null
+  }
+  if (parsed.hostname === 'github.com') {
+    return getDotComAPIEndpoint()
+  } else if (parsed.hostname === 'bitbucket.org') {
+    return getBitbucketAPIEndpoint()
+  } else if (parsed.hostname === 'gitlab.com') {
+    return getGitLabAPIEndpoint()
+  } else {
+    return `${parsed.protocol}//${parsed.hostname}/api`
+  }
+}
+
+/**
+ * Get the URL for the HTML site. For example:
+ *
+ * https://api.github.com -> https://github.com
+ * http://github.mycompany.com/api -> http://github.mycompany.com/
+ */
+export function getHTMLURL(endpoint: string): string {
+  if (envHTMLURL !== undefined) {
+    return envHTMLURL
+  }
+
+  // In the case of GitHub.com, the HTML site lives on the parent domain.
+  //  E.g., https://api.github.com -> https://github.com
+  //
+  // Whereas with Enterprise, it lives on the same domain but without the
+  // API path:
+  //  E.g., https://github.mycompany.com/api/v3 -> https://github.mycompany.com
+  //
+  // We need to normalize them.
+  if (endpoint === getDotComAPIEndpoint() && !envEndpoint) {
+    return 'https://github.com'
+  } else if (endpoint === getBitbucketAPIEndpoint()) {
+    return 'https://bitbucket.org'
+  } else if (endpoint === getGitLabAPIEndpoint()) {
+    return 'https://gitlab.com'
+  } else {
+    if (isGHE(endpoint)) {
+      const url = new window.URL(endpoint)
+
+      url.pathname = '/'
+
+      if (url.hostname.startsWith('api.')) {
+        url.hostname = url.hostname.replace(/^api\./, '')
+      }
+
+      return url.toString()
+    }
+
+    const parsed = URL.parse(endpoint)
+    return `${parsed.protocol}//${parsed.hostname}`
+  }
+}
+
+/**
+ * Get the API URL for an HTML URL. For example:
+ *
+ * http://github.mycompany.com -> https://github.mycompany.com/api/v3
+ */
+export function getEnterpriseAPIURL(endpoint: string): string {
+  const { host } = new window.URL(endpoint)
+
+  return isGHE(endpoint) ? `https://api.${host}/` : `https://${host}/api/v3`
+}
+
+export const getAPIEndpoint = (endpoint: string) => {
+  if (isDotCom(endpoint)) {
+    return getDotComAPIEndpoint()
+  }
+  if (isBitbucket(endpoint)) {
+    return getBitbucketAPIEndpoint()
+  }
+  if (isGitLab(endpoint)) {
+    return getGitLabAPIEndpoint()
+  }
+  return getEnterpriseAPIURL(endpoint)
+}
+
+/** Get github.com's API endpoint. */
+export function getDotComAPIEndpoint(): string {
+  // NOTE:
+  // `DESKTOP_GITHUB_DOTCOM_API_ENDPOINT` only needs to be set if you are
+  // developing against a local version of GitHub the Website, and need to debug
+  // the server-side interaction. For all other cases you should leave this
+  // unset.
+  if (envEndpoint && envEndpoint.length > 0) {
+    return envEndpoint
+  }
+
+  return 'https://api.github.com'
+}
+
+export function getBitbucketAPIEndpoint(): string {
+  return 'https://api.bitbucket.org/2.0'
+}
+
+export function getGitLabAPIEndpoint(): string {
+  return 'https://gitlab.com/api/v4'
+}
+
+/** Get the account for the endpoint. */
+export function getAccountForEndpoint(
+  accounts: ReadonlyArray<Account>,
+  endpoint: string,
+  login: string,
+  strict: boolean = false
+): Account | null {
+  return (
+    accounts.find(a => a.endpoint === endpoint && a.login === login) ||
+    (!strict && accounts.find(a => a.endpoint === endpoint)) ||
+    null
+  )
+}
+
+export function getOAuthAuthorizationURL(
+  endpoint: string,
+  state: string
+): string {
+  const urlBase = getHTMLURL(endpoint)
+  const scope = encodeURIComponent(oauthScopes.join(' '))
+
+  return new window.URL(
+    `/login/oauth/authorize?client_id=${ClientID}&scope=${scope}&state=${state}`,
+    urlBase
+  ).toString()
+}
+
+export function getBitbucketOAuthAuthorizationURL(): string {
+  return `https://bitbucket.org/site/oauth2/authorize?client_id=${ClientIDBitbucket}&response_type=code`
+}
+
+export function getGitLabOAuthAuthorizationURL(redirectUri: string): string {
+  const scope = encodeURIComponent('read_user read_api read_repository')
+  return `https://gitlab.com/oauth/authorize?client_id=${ClientIDGitLab}&redirect_uri=${encodeURIComponent(
+    redirectUri
+  )}&response_type=code&scope=${scope}`
+}
+
+export function getGitLabOAuthRedirectUri(): string {
+  return __DEV_SECRETS__
+    ? 'x-github-desktop-dev-auth://oauth'
+    : 'x-github-desktop-auth://oauth'
+}
+
+export async function requestOAuthToken(
+  endpoint: string,
+  code: string
+): Promise<[string, string, number] | null> {
+  try {
+    const urlBase = getHTMLURL(endpoint)
+    const response = await request(
+      urlBase,
+      null,
+      'POST',
+      'login/oauth/access_token',
+      {
+        client_id: ClientID,
+        client_secret: ClientSecret,
+        code: code,
+      }
+    )
+    tryUpdateEndpointVersionFromResponse(endpoint, response)
+
+    const result = await parsedResponse<IAPIAccessToken>(response)
+    return [result.access_token, '', 0]
+  } catch (e) {
+    log.warn(`requestOAuthToken: failed with endpoint ${endpoint}`, e)
+    return null
+  }
+}
+
+export async function requestOAuthTokenBitbucket(
+  code: string
+): Promise<[string, string, number] | null> {
+  try {
+    const response = await fetch(
+      'https://bitbucket.org/site/oauth2/access_token',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${BitbucketBasicAuth()}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `grant_type=authorization_code&code=${code}`,
+      }
+    )
+
+    const result = await parsedResponse<IBitbucketAPIAccessToken>(response)
+    const expiresAt = toExpiresAt(result.expires_in)
+    return [result.access_token, result.refresh_token, expiresAt]
+  } catch (e) {
+    log.warn('requestOAuthTokenBitbucket failed', e)
+    return null
+  }
+}
+
+export async function requestOAuthTokenGitLab(
+  code: string,
+  redirectUri: string
+): Promise<[string, string, number] | null> {
+  try {
+    const response = await fetch('https://gitlab.com/oauth/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        client_id: ClientIDGitLab,
+        client_secret: ClientSecretGitLab,
+        code: code,
+        grant_type: 'authorization_code',
+        redirect_uri: redirectUri,
+      }),
+    })
+
+    const result = await parsedResponse<IGitLabAPIAccessToken>(response)
+    const expiresAt = toExpiresAt(result.expires_in)
+    return [result.access_token, result.refresh_token, expiresAt]
+  } catch (e) {
+    log.warn('requestOAuthTokenGitLab failed', e)
+    return null
+  }
+}
+
+function tryUpdateEndpointVersionFromResponse(
+  endpoint: string,
+  response: Response
+) {
+  const gheVersion = response.headers.get('x-github-enterprise-version')
+  if (gheVersion !== null) {
+    updateEndpointVersion(endpoint, gheVersion)
+  }
+}
+
+function getCombinedRefStatus(
+  checkRuns: ReadonlyArray<IAPIRefStatusItem>
+): APIRefState {
+  // https://docs.github.com/en/rest/commits/statuses?apiVersion=2022-11-28#get-the-combined-status-for-a-specific-reference
+  if (checkRuns.some(cr => cr.state === 'failure' || cr.state === 'error')) {
+    return 'failure'
+  }
+  if (checkRuns.length === 0 || checkRuns.some(cr => cr.state === 'pending')) {
+    return 'pending'
+  }
+  return 'success'
+}
+
+const knownThirdPartyHosts = new Set([
+  'dev.azure.com',
+  'gitlab.com',
+  'bitbucket.org',
+  'amazonaws.com',
+  'visualstudio.com',
+])
+
+const isKnownThirdPartyHost = (hostname: string) => {
+  if (knownThirdPartyHosts.has(hostname)) {
+    return true
+  }
+
+  for (const knownHost of knownThirdPartyHosts) {
+    if (hostname.endsWith(`.${knownHost}`)) {
+      return true
+    }
+  }
+
+  return false
+}
+
+/**
+ * Determines whether a given remote URL belongs to a trusted host.
+ */
+export function isTrustedRemoteHost(url: string) {
+  try {
+    const { protocol, host } = new window.URL(url)
+
+    if (protocol !== 'https:') {
+      return false
+    }
+
+    // We must explicitly allow github.com for users that are not logged-in,
+    // as it is not part of the knowThirdPartyHosts constant.
+    if (host === 'github.com' || host.endsWith('.github.com')) {
+      return true
+    }
+
+    // Check known third party hosts.
+    return isKnownThirdPartyHost(host)
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Attempts to determine whether or not the url belongs to a GitHub host.
+ *
+ * This is a best-effort attempt and may return `undefined` if encountering
+ * an error making the discovery request
+ */
+export async function isGitHubHost(url: string) {
+  const { hostname } = new window.URL(url)
+
+  const endpoint =
+    hostname === 'github.com' || hostname === 'api.github.com'
+      ? getDotComAPIEndpoint()
+      : getEnterpriseAPIURL(url)
+
+  if (isDotCom(endpoint) || isGHE(endpoint)) {
+    return true
+  }
+
+  if (isKnownThirdPartyHost(hostname)) {
+    return false
+  }
+
+  // github.example.com,
+  if (/(^|\.)(github)\./.test(hostname)) {
+    return true
+  }
+
+  // bitbucket.example.com, etc
+  if (/(^|\.)(bitbucket|gitlab)\./.test(hostname)) {
+    return false
+  }
+
+  if (getEndpointVersion(endpoint) !== null) {
+    return true
+  }
+
+  // Add a unique identifier to the URL to make sure our certificate error
+  // supression only catches this request
+  const metaUrl = `${endpoint}/meta?ghd=${crypto.randomUUID()}`
+
+  const ac = new AbortController()
+  const timeoutId = setTimeout(() => ac.abort(), 2000)
+  suppressCertificateErrorFor(metaUrl)
+  try {
+    const response = await fetch(metaUrl, {
+      headers: { 'user-agent': getUserAgent() },
+      signal: ac.signal,
+      credentials: 'omit',
+      method: 'HEAD',
+      redirect: 'error',
+    })
+
+    tryUpdateEndpointVersionFromResponse(endpoint, response)
+
+    return response.headers.has('x-github-request-id')
+  } catch (e) {
+    log.debug(`isGitHubHost: failed with endpoint ${endpoint}`, e)
+    return undefined
+  } finally {
+    clearTimeout(timeoutId)
+    clearCertificateErrorSuppressionFor(metaUrl)
+  }
+}
+
+const isRulesetsNotEnabledError = (error: any) =>
+  error instanceof APIError &&
+  error.responseStatus === 403 &&
+  /upgrade.*to enable this feature.*/i.test(error.apiError?.message ?? '')
+
+const isNotFoundApiError = (error: any) =>
+  error instanceof APIError && error.responseStatus === 404
+
 export class BitbucketAPI extends API {
   private apiRefreshToken: string
   private expiresAt: Date | null = null
@@ -3662,448 +4110,3 @@ export class GitLabAPI extends API {
     return undefined
   }
 }
-
-export async function deleteToken(account: Account) {
-  try {
-    const creds = Buffer.from(`${ClientID}:${ClientSecret}`).toString('base64')
-    const response = await request(
-      account.endpoint,
-      null,
-      'DELETE',
-      `applications/${ClientID}/token`,
-      { access_token: account.token },
-      { Authorization: `Basic ${creds}` }
-    )
-
-    return response.status === 204
-  } catch (e) {
-    log.error(`deleteToken: failed with endpoint ${account.endpoint}`, e)
-    return false
-  }
-}
-
-/** Fetch the user authenticated by the token. */
-export async function fetchUser(
-  endpoint: string,
-  token: string,
-  refreshToken: string,
-  expiresAt: number,
-  login: string | UnknownLogin
-): Promise<Account> {
-  let api: API
-  if (endpoint === getBitbucketAPIEndpoint()) {
-    api = new BitbucketAPI(token, login, refreshToken, expiresAt)
-  } else if (endpoint === getGitLabAPIEndpoint()) {
-    api = GitLabAPI.get(token, login, refreshToken, expiresAt)
-  } else {
-    api = new API(endpoint, token, login)
-  }
-  try {
-    const [user, emails, copilotInfo, features] = await Promise.all([
-      api.fetchAccount(),
-      api.fetchEmails(),
-      api.fetchUserCopilotInfo(),
-      api.fetchFeatureFlags(),
-    ])
-
-    return new Account(
-      user.login,
-      endpoint,
-      api.getToken(), // Grab it back from the API because it may have been refreshed
-      api.getRefreshToken(),
-      api.getExpiresAt(),
-      emails,
-      user.avatar_url,
-      user.id,
-      user.name || user.login,
-      user.plan?.name,
-      copilotInfo?.copilotEndpoint,
-      copilotInfo?.isCopilotDesktopEnabled,
-      features
-    )
-  } catch (e) {
-    log.warn(`fetchUser: failed with endpoint ${endpoint}`, e)
-    throw e
-  }
-}
-
-function toExpiresAt(expiresInSeconds: number) {
-  return Date.now() + expiresInSeconds * 900 // 10% safety buffer
-}
-
-/**
- * Map a repository's URL to the endpoint associated with it. For example:
- *
- * https://github.com/desktop/desktop -> https://api.github.com
- * http://github.mycompany.com/my-team/my-project -> http://github.mycompany.com/api
- */
-export function getEndpointForRepository(url: string): string | null {
-  const parsed = parseRemote(url)
-  if (!parsed) {
-    log.warn(`getEndpointForRepository: failed to parse url ${url}`)
-    return null
-  }
-  if (parsed.hostname === 'github.com') {
-    return getDotComAPIEndpoint()
-  } else if (parsed.hostname === 'bitbucket.org') {
-    return getBitbucketAPIEndpoint()
-  } else if (parsed.hostname === 'gitlab.com') {
-    return getGitLabAPIEndpoint()
-  } else {
-    return `${parsed.protocol}//${parsed.hostname}/api`
-  }
-}
-
-/**
- * Get the URL for the HTML site. For example:
- *
- * https://api.github.com -> https://github.com
- * http://github.mycompany.com/api -> http://github.mycompany.com/
- */
-export function getHTMLURL(endpoint: string): string {
-  if (envHTMLURL !== undefined) {
-    return envHTMLURL
-  }
-
-  // In the case of GitHub.com, the HTML site lives on the parent domain.
-  //  E.g., https://api.github.com -> https://github.com
-  //
-  // Whereas with Enterprise, it lives on the same domain but without the
-  // API path:
-  //  E.g., https://github.mycompany.com/api/v3 -> https://github.mycompany.com
-  //
-  // We need to normalize them.
-  if (endpoint === getDotComAPIEndpoint() && !envEndpoint) {
-    return 'https://github.com'
-  } else if (endpoint === getBitbucketAPIEndpoint()) {
-    return 'https://bitbucket.org'
-  } else if (endpoint === getGitLabAPIEndpoint()) {
-    return 'https://gitlab.com'
-  } else {
-    if (isGHE(endpoint)) {
-      const url = new window.URL(endpoint)
-
-      url.pathname = '/'
-
-      if (url.hostname.startsWith('api.')) {
-        url.hostname = url.hostname.replace(/^api\./, '')
-      }
-
-      return url.toString()
-    }
-
-    const parsed = URL.parse(endpoint)
-    return `${parsed.protocol}//${parsed.hostname}`
-  }
-}
-
-/**
- * Get the API URL for an HTML URL. For example:
- *
- * http://github.mycompany.com -> https://github.mycompany.com/api/v3
- */
-export function getEnterpriseAPIURL(endpoint: string): string {
-  const { host } = new window.URL(endpoint)
-
-  return isGHE(endpoint) ? `https://api.${host}/` : `https://${host}/api/v3`
-}
-
-export const getAPIEndpoint = (endpoint: string) => {
-  if (isDotCom(endpoint)) {
-    return getDotComAPIEndpoint()
-  }
-  if (isBitbucket(endpoint)) {
-    return getBitbucketAPIEndpoint()
-  }
-  if (isGitLab(endpoint)) {
-    return getGitLabAPIEndpoint()
-  }
-  return getEnterpriseAPIURL(endpoint)
-}
-
-/** Get github.com's API endpoint. */
-export function getDotComAPIEndpoint(): string {
-  // NOTE:
-  // `DESKTOP_GITHUB_DOTCOM_API_ENDPOINT` only needs to be set if you are
-  // developing against a local version of GitHub the Website, and need to debug
-  // the server-side interaction. For all other cases you should leave this
-  // unset.
-  if (envEndpoint && envEndpoint.length > 0) {
-    return envEndpoint
-  }
-
-  return 'https://api.github.com'
-}
-
-export function getBitbucketAPIEndpoint(): string {
-  return 'https://api.bitbucket.org/2.0'
-}
-
-export function getGitLabAPIEndpoint(): string {
-  return 'https://gitlab.com/api/v4'
-}
-
-/** Get the account for the endpoint. */
-export function getAccountForEndpoint(
-  accounts: ReadonlyArray<Account>,
-  endpoint: string,
-  login: string,
-  strict: boolean = false
-): Account | null {
-  return (
-    accounts.find(a => a.endpoint === endpoint && a.login === login) ||
-    (!strict && accounts.find(a => a.endpoint === endpoint)) ||
-    null
-  )
-}
-
-export function getOAuthAuthorizationURL(
-  endpoint: string,
-  state: string
-): string {
-  const urlBase = getHTMLURL(endpoint)
-  const scope = encodeURIComponent(oauthScopes.join(' '))
-
-  return new window.URL(
-    `/login/oauth/authorize?client_id=${ClientID}&scope=${scope}&state=${state}`,
-    urlBase
-  ).toString()
-}
-
-export function getBitbucketOAuthAuthorizationURL(): string {
-  return `https://bitbucket.org/site/oauth2/authorize?client_id=${ClientIDBitbucket}&response_type=code`
-}
-
-export function getGitLabOAuthAuthorizationURL(redirectUri: string): string {
-  const scope = encodeURIComponent('read_user read_api read_repository')
-  return `https://gitlab.com/oauth/authorize?client_id=${ClientIDGitLab}&redirect_uri=${encodeURIComponent(
-    redirectUri
-  )}&response_type=code&scope=${scope}`
-}
-
-export function getGitLabOAuthRedirectUri(): string {
-  return __DEV_SECRETS__
-    ? 'x-github-desktop-dev-auth://oauth'
-    : 'x-github-desktop-auth://oauth'
-}
-
-export async function requestOAuthToken(
-  endpoint: string,
-  code: string
-): Promise<[string, string, number] | null> {
-  try {
-    const urlBase = getHTMLURL(endpoint)
-    const response = await request(
-      urlBase,
-      null,
-      'POST',
-      'login/oauth/access_token',
-      {
-        client_id: ClientID,
-        client_secret: ClientSecret,
-        code: code,
-      }
-    )
-    tryUpdateEndpointVersionFromResponse(endpoint, response)
-
-    const result = await parsedResponse<IAPIAccessToken>(response)
-    return [result.access_token, '', 0]
-  } catch (e) {
-    log.warn(`requestOAuthToken: failed with endpoint ${endpoint}`, e)
-    return null
-  }
-}
-
-export async function requestOAuthTokenBitbucket(
-  code: string
-): Promise<[string, string, number] | null> {
-  try {
-    const response = await fetch(
-      'https://bitbucket.org/site/oauth2/access_token',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Basic ${BitbucketBasicAuth()}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: `grant_type=authorization_code&code=${code}`,
-      }
-    )
-
-    const result = await parsedResponse<IBitbucketAPIAccessToken>(response)
-    const expiresAt = toExpiresAt(result.expires_in)
-    return [result.access_token, result.refresh_token, expiresAt]
-  } catch (e) {
-    log.warn('requestOAuthTokenBitbucket failed', e)
-    return null
-  }
-}
-
-export async function requestOAuthTokenGitLab(
-  code: string,
-  redirectUri: string
-): Promise<[string, string, number] | null> {
-  try {
-    const response = await fetch('https://gitlab.com/oauth/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        client_id: ClientIDGitLab,
-        client_secret: ClientSecretGitLab,
-        code: code,
-        grant_type: 'authorization_code',
-        redirect_uri: redirectUri,
-      }),
-    })
-
-    const result = await parsedResponse<IGitLabAPIAccessToken>(response)
-    const expiresAt = toExpiresAt(result.expires_in)
-    return [result.access_token, result.refresh_token, expiresAt]
-  } catch (e) {
-    log.warn('requestOAuthTokenGitLab failed', e)
-    return null
-  }
-}
-
-function tryUpdateEndpointVersionFromResponse(
-  endpoint: string,
-  response: Response
-) {
-  const gheVersion = response.headers.get('x-github-enterprise-version')
-  if (gheVersion !== null) {
-    updateEndpointVersion(endpoint, gheVersion)
-  }
-}
-
-function getCombinedRefStatus(
-  checkRuns: ReadonlyArray<IAPIRefStatusItem>
-): APIRefState {
-  // https://docs.github.com/en/rest/commits/statuses?apiVersion=2022-11-28#get-the-combined-status-for-a-specific-reference
-  if (checkRuns.some(cr => cr.state === 'failure' || cr.state === 'error')) {
-    return 'failure'
-  }
-  if (checkRuns.length === 0 || checkRuns.some(cr => cr.state === 'pending')) {
-    return 'pending'
-  }
-  return 'success'
-}
-
-const knownThirdPartyHosts = new Set([
-  'dev.azure.com',
-  'gitlab.com',
-  'bitbucket.org',
-  'amazonaws.com',
-  'visualstudio.com',
-])
-
-const isKnownThirdPartyHost = (hostname: string) => {
-  if (knownThirdPartyHosts.has(hostname)) {
-    return true
-  }
-
-  for (const knownHost of knownThirdPartyHosts) {
-    if (hostname.endsWith(`.${knownHost}`)) {
-      return true
-    }
-  }
-
-  return false
-}
-
-/**
- * Determines whether a given remote URL belongs to a trusted host.
- */
-export function isTrustedRemoteHost(url: string) {
-  try {
-    const { protocol, host } = new window.URL(url)
-
-    if (protocol !== 'https:') {
-      return false
-    }
-
-    // We must explicitly allow github.com for users that are not logged-in,
-    // as it is not part of the knowThirdPartyHosts constant.
-    if (host === 'github.com' || host.endsWith('.github.com')) {
-      return true
-    }
-
-    // Check known third party hosts.
-    return isKnownThirdPartyHost(host)
-  } catch {
-    return false
-  }
-}
-
-/**
- * Attempts to determine whether or not the url belongs to a GitHub host.
- *
- * This is a best-effort attempt and may return `undefined` if encountering
- * an error making the discovery request
- */
-export async function isGitHubHost(url: string) {
-  const { hostname } = new window.URL(url)
-
-  const endpoint =
-    hostname === 'github.com' || hostname === 'api.github.com'
-      ? getDotComAPIEndpoint()
-      : getEnterpriseAPIURL(url)
-
-  if (isDotCom(endpoint) || isGHE(endpoint)) {
-    return true
-  }
-
-  if (isKnownThirdPartyHost(hostname)) {
-    return false
-  }
-
-  // github.example.com,
-  if (/(^|\.)(github)\./.test(hostname)) {
-    return true
-  }
-
-  // bitbucket.example.com, etc
-  if (/(^|\.)(bitbucket|gitlab)\./.test(hostname)) {
-    return false
-  }
-
-  if (getEndpointVersion(endpoint) !== null) {
-    return true
-  }
-
-  // Add a unique identifier to the URL to make sure our certificate error
-  // supression only catches this request
-  const metaUrl = `${endpoint}/meta?ghd=${crypto.randomUUID()}`
-
-  const ac = new AbortController()
-  const timeoutId = setTimeout(() => ac.abort(), 2000)
-  suppressCertificateErrorFor(metaUrl)
-  try {
-    const response = await fetch(metaUrl, {
-      headers: { 'user-agent': getUserAgent() },
-      signal: ac.signal,
-      credentials: 'omit',
-      method: 'HEAD',
-      redirect: 'error',
-    })
-
-    tryUpdateEndpointVersionFromResponse(endpoint, response)
-
-    return response.headers.has('x-github-request-id')
-  } catch (e) {
-    log.debug(`isGitHubHost: failed with endpoint ${endpoint}`, e)
-    return undefined
-  } finally {
-    clearTimeout(timeoutId)
-    clearCertificateErrorSuppressionFor(metaUrl)
-  }
-}
-
-const isRulesetsNotEnabledError = (error: any) =>
-  error instanceof APIError &&
-  error.responseStatus === 403 &&
-  /upgrade.*to enable this feature.*/i.test(error.apiError?.message ?? '')
-
-const isNotFoundApiError = (error: any) =>
-  error instanceof APIError && error.responseStatus === 404
