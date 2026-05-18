@@ -19,7 +19,7 @@ type ChannelToValidate = 'production' | 'beta'
  */
 const ValidElectronVersions: Record<ChannelToValidate, string> = {
   production: '40.1.0',
-  beta: '40.1.0',
+  beta: '42.0.1',
 }
 
 // Only when we get a RELEASE_CHANNEL we know we're in the middle of a deployment.
