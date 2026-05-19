@@ -140,7 +140,10 @@ export async function listSubmodules(
     // existence of submodules in this repo. We're reading the commondir file
     // ourselves here instead of calling out to git to avoid the cost of
     // spawning a process on Windows
-    const commonDir = await readFile(join(repository.resolvedGitDir, 'commondir'), 'utf8')
+    const commonDir = await readFile(
+      join(repository.resolvedGitDir, 'commondir'),
+      'utf8'
+    )
       .then(p => (p ? resolve(repository.path, p.replace(/\r?\n$/, '')) : null))
       .catch(() => null)
 
