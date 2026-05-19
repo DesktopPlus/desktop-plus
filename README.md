@@ -194,7 +194,7 @@ echo -e "[github-desktop-plus]\nname=GitHub Desktop Plus\nbaseurl=https://rpm.gi
 Update the package list and install:
 
 ```bash
-sudo dnf check-update
+sudo dnf check-update --refresh
 sudo dnf install github-desktop-plus
 ```
 
