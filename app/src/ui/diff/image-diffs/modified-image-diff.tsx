@@ -8,6 +8,7 @@ import { OnionSkin } from './onion-skin'
 import { Swipe } from './swipe'
 import { assertNever } from '../../../lib/fatal-error'
 import { ISize, getMaxFitSize } from './sizing'
+import { getSvgDiffShowCode, saveSvgDiffShowCode } from './svg-diff-preferences'
 
 interface IModifiedImageDiffProps {
   readonly previous: Image
@@ -100,7 +101,7 @@ export class ModifiedImageDiff extends React.Component<
       previousImageSize: null,
       currentImageSize: null,
       containerSize: null,
-      showCode: props.renderCodeDiff !== undefined,
+      showCode: props.renderCodeDiff !== undefined && getSvgDiffShowCode(),
     }
   }
 
@@ -156,9 +157,8 @@ export class ModifiedImageDiff extends React.Component<
   }
 
   public componentDidUpdate(prevProps: IModifiedImageDiffProps) {
-    // When switching from a non-SVG to an SVG, default to the Code tab.
     if (!prevProps.renderCodeDiff && this.props.renderCodeDiff) {
-      this.setState({ showCode: true })
+      this.setState({ showCode: getSvgDiffShowCode() })
     }
   }
 
@@ -228,7 +228,9 @@ export class ModifiedImageDiff extends React.Component<
   }
 
   private onSvgTabClicked = (index: number) => {
-    if (index === 0) {
+    const showCode = index === 0
+    saveSvgDiffShowCode(showCode)
+    if (showCode) {
       this.setState({ showCode: true })
     } else {
       this.setState({ showCode: false })

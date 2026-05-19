@@ -3,6 +3,7 @@ import * as React from 'react'
 import { Image } from '../../../models/diff'
 import { ImageContainer } from './image-container'
 import { TabBar, TabBarType } from '../../tab-bar'
+import { getSvgDiffShowCode, saveSvgDiffShowCode } from './svg-diff-preferences'
 
 interface IDeletedImageDiffProps {
   readonly previous: Image
@@ -20,17 +21,21 @@ export class DeletedImageDiff extends React.Component<
 > {
   public constructor(props: IDeletedImageDiffProps) {
     super(props)
-    this.state = { showCode: props.renderCodeDiff !== undefined }
+    this.state = {
+      showCode: props.renderCodeDiff !== undefined && getSvgDiffShowCode(),
+    }
   }
 
   public componentDidUpdate(prevProps: IDeletedImageDiffProps) {
     if (!prevProps.renderCodeDiff && this.props.renderCodeDiff) {
-      this.setState({ showCode: true })
+      this.setState({ showCode: getSvgDiffShowCode() })
     }
   }
 
   private onTabClicked = (index: number) => {
-    this.setState({ showCode: index === 0 })
+    const showCode = index === 0
+    saveSvgDiffShowCode(showCode)
+    this.setState({ showCode })
   }
 
   public render() {
