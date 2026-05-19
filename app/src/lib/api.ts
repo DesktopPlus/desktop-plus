@@ -943,7 +943,7 @@ interface IBitbucketAPIPullRequestRef {
   }
   readonly commit: {
     readonly hash: string
-  }
+  } | null
   readonly repository: IBitbucketAPIRepositorySummary
 }
 function toIAPIPullRequestRef(
@@ -951,7 +951,7 @@ function toIAPIPullRequestRef(
 ): IAPIPullRequestRef {
   return {
     ref: ref.branch.name,
-    sha: ref.commit.hash,
+    sha: ref.commit?.hash ?? '',
     repo: summaryToIAPIRepository(ref.repository),
   }
 }
