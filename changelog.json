@@ -1,5 +1,11 @@
 {
   "releases": {
+    "3.5.9-beta3": [
+      "[Fixed] Skip branches checked out in linked worktrees during pruning - #8043. Thanks @KRRT7!",
+      "[Fixed] Fix styling of buttons in the commit message area - #22075",
+      "[Fixed] Fix rendering long lists of changed files - #21630",
+      "[Improved] Update Electron to version 42.0.1 - #22104"
+    ],
     "3.5.9-beta2": [
       "[Fixed] Add syntax highlighting for .astro files - #21987. Thanks @JunDev76!",
       "[Fixed] Fix Windows scrollbar sync with react-virtualized Grid - #21940",
