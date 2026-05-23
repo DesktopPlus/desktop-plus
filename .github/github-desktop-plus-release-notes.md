@@ -1,23 +1,18 @@
-GitHub Desktop Plus v3.5.9-beta3
+GitHub Desktop Plus v3.5.9
 
-Upstream: [GitHub Desktop 3.5.9-beta3 release notes](https://github.com/desktop/desktop/releases/tag/release-3.5.9-beta3)
+Upstream: [GitHub Desktop 3.5.9 release notes](https://github.com/desktop/desktop/releases/tag/release-3.5.9)
 
 ---
 
 ## **Changes and improvements:**
 
-- [#151] **Linux:** Added the option to auto-hide the menu bar.  
-  Go to `File` > `Options` > `Appearance` > `Title bar style` and select "Native without menu bar".
+- [#152] Added a new **commit graph** view mode to the history tab. This allows you to visualize the commit history as a graph, showing branches and merges more clearly. Thank you @kingdo10!  
+  You can switch between the list view and graph view using the toggle button next to the search bar in the history tab.
 
-- [#149] Allow pinning repositories to the top of the repo list.  
-  To pin a repository, right-click on it in the list and select "Pin to top".
+- [#162] SVG file diffs now have the option to be rendered as images instead of code.
 
-- The selected commit in the history view now remains visible after clearing the search query.
+- [#166] Added OpenSUSE install guide to the README. Thank you @arfshl!
 
 ## **Fixes:**
 
-- Fixed an issue where the "Pull all" button in the repository list would ignore some repositories.
-
-- [#154] Opening files in Cursor (text editor) should now work correctly.
-
-- [#157] **macOS:** The app now uses the correct bundle identifier, instead of duplicating the one from GitHub Desktop.
+- Fixed an issue where Bitbucket PRs would not be refreshed correctly in some cases.
