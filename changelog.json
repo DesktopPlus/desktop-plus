@@ -1,5 +1,10 @@
 {
   "releases": {
+    "3.5.12-beta1": [
+      "[Fixed] Fix launching custom shells - #22186",
+      "[Fixed] Fix crash trying to run a non-existent script - #22167",
+      "[Fixed] Restore keyboard focus to the commit button after the commit progress dialog closes - #22192"
+    ],
     "3.5.11": ["[Fixed] Fix launching custom shells"],
     "3.5.10": [
       "[Fixed] Intermittent crash trying to load Copilot models",
