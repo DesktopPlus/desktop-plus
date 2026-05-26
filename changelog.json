@@ -1,5 +1,6 @@
 {
   "releases": {
+    "3.5.11": ["[Fixed] Fix launching custom shells"],
     "3.5.10": [
       "[Fixed] Intermittent crash trying to load Copilot models",
       "[Added] Add date, time, and number formatting preferences to the Appearance settings - #21836"

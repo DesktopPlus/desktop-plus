@@ -4,8 +4,16 @@ import { promisify } from 'util'
 import { execFile, spawn, SpawnOptions } from 'child_process'
 import { access, lstat } from 'fs/promises'
 import * as fs from 'fs'
+import { extname } from 'path'
 
 const execFileAsync = promisify(execFile)
+
+/**
+ * File extensions that can be invoked directly by `spawn` on Windows. Other
+ * common Windows launcher types (e.g. `.bat`, `.cmd`, `.ps1`) require a shell
+ * to execute and are intentionally excluded.
+ */
+export const WindowsExecutableExtensions: ReadonlyArray<string> = ['exe', 'com']
 
 /** The string that will be replaced by the target path in the custom integration arguments */
 export const TargetPathArgument = '%TARGET_PATH%'
@@ -73,14 +81,19 @@ export function expandTargetPathArgument(
   args: ReadonlyArray<string>,
   repoPath: string
 ): ReadonlyArray<string> {
-  return args.map(arg =>
-    arg
-      // If the placeholder is already quoted (e.g. "%TARGET_PATH%"), replace
-      // it including the surrounding quotes to avoid double-quoting the path.
-      .replaceAll(`"${TargetPathArgument}"`, `"${repoPath}"`)
-      // For unquoted occurrences, wrap the path in quotes.
-      .replaceAll(TargetPathArgument, `"${repoPath}"`)
-  )
+  // Only strip quotes when the entire argument is the quoted placeholder.
+  // Otherwise preserve any user-provided quoting and replace the placeholder
+  // in place.
+  return args.map(arg => {
+    if (
+      arg === `'${TargetPathArgument}'` ||
+      arg === `"${TargetPathArgument}"`
+    ) {
+      return repoPath
+    }
+
+    return arg.replaceAll(TargetPathArgument, repoPath)
+  })
 }
 
 /**
@@ -115,8 +128,19 @@ export async function validateCustomIntegrationPath(
       .then(() => true)
       .catch(() => false)
 
+    // On Windows, `X_OK` is equivalent to `F_OK` so we additionally restrict
+    // to extensions that `spawn` can launch directly. Wrappers like `.bat`
+    // or `.cmd` require a shell and would silently fail at launch time.
+    const hasLaunchableExtension =
+      !__WIN32__ ||
+      WindowsExecutableExtensions.includes(
+        extname(path).replace(/^\./, '').toLowerCase()
+      )
+
     const isExecutableFile =
-      (pathStat.isFile() || pathStat.isSymbolicLink()) && canBeExecuted
+      (pathStat.isFile() || pathStat.isSymbolicLink()) &&
+      canBeExecuted &&
+      hasLaunchableExtension
 
     // On macOS, not only executable files are valid, but also apps (which are
     // directories with a `.app` extension and from which we can retrieve

@@ -1426,6 +1426,42 @@ export class App extends React.Component<IAppProps, IAppState> {
   }
 
   private onPopupDismissed = (popupId: number) => {
+    // If the commit progress dialog is open and remains open until after the
+    // commit is done the button that triggered the dialog will be gone so focus
+    // will return to the document. Instead we'll manually move focus to the
+    // commit button under those circumstances to ensure that keyboard users
+    // are dropped off in a logical place after the dialog is dismissed.
+    //
+    // https://github.com/github/accessibility-audits/issues/15830
+    if (this.state.currentPopup?.id === popupId) {
+      if (
+        this.state.currentPopup.type === PopupType.CommitProgress &&
+        this.state.selectedState?.type === SelectionType.Repository
+      ) {
+        const repo = this.state.selectedState.repository
+        const repoState = this.props.repositoryStateManager.get(repo)
+
+        if (!repoState.isCommitting) {
+          const dialog = document.getElementById('commit-progress-dialog')
+          if (dialog && dialog instanceof HTMLDialogElement) {
+            dialog.addEventListener(
+              'close',
+              () => {
+                const btn = document.querySelector(
+                  '#repository-sidebar button.commit-button'
+                )
+
+                if (btn && btn instanceof HTMLButtonElement) {
+                  btn.focus()
+                }
+              },
+              { once: true }
+            )
+          }
+        }
+      }
+    }
+
     return this.props.dispatcher.closePopupById(popupId)
   }
 
