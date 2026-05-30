@@ -446,6 +446,9 @@ export class App extends React.Component<IAppProps, IAppState> {
   }
 
   private checkIfNameChangeSuggestionIsInOrder() {
+    if (Date.now() > new Date('2026-06-07').getTime()) {
+      return
+    }
     const HasLaunchedBeforeKey = 'has-launched-before'
     const hasLaunchedBefore = getBoolean(HasLaunchedBeforeKey, false)
     if (!hasLaunchedBefore) {
