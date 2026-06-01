@@ -1,5 +1,8 @@
 {
   "releases": {
+    "3.5.12": [
+      "[Fixed] Items in lists such as branches and changed files are properly announced by screen readers on Windows - #22219"
+    ],
     "3.5.11": ["[Fixed] Fix launching custom shells"],
     "3.5.10": [
       "[Fixed] Intermittent crash trying to load Copilot models",
