@@ -1212,6 +1212,7 @@ export class SectionList extends React.Component<
         <ListRow
           key={params.key}
           id={id}
+          role="option"
           ariaLabel={ariaLabel}
           sectionHasHeader={sectionHasHeader}
           onRowRef={this.onRowRef}
