@@ -49,11 +49,9 @@ export function getAccountForCommitMessageGeneration(
  * IMPORTANT: Do not remove the `isCopilotDesktopEnabled` check without
  * replacing it with the appropriate replacement.
  *
- * Also gated on `enableCopilotSdkCommitMessageGeneration`, which is the
- * switch (including the remote feature flag) controlling whether we're
- * allowed to use the Copilot SDK at all. This lets us disable Copilot SDK
- * usage remotely and keeps conflict resolution from running when the SDK
- * is off.
+ * Also gated on `enableCopilotSdkCommitMessageGeneration`, which currently
+ * controls whether we're allowed to use the Copilot SDK at all (beta/dev
+ * builds). This keeps conflict resolution from running when the SDK is off.
  */
 const isAccountEligibleForCopilotConflictResolution = (account: Account) =>
   enableCopilotConflictResolution() &&
