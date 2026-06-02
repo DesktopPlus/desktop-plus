@@ -4,6 +4,7 @@ import { getAccountForEndpoint } from './api'
 import {
   enableCommitMessageGeneration,
   enableCopilotConflictResolution,
+  enableCopilotSdkCommitMessageGeneration,
 } from './feature-flag'
 
 /** Get the authenticated account for the repository. */
@@ -47,9 +48,17 @@ export function getAccountForCommitMessageGeneration(
  *
  * IMPORTANT: Do not remove the `isCopilotDesktopEnabled` check without
  * replacing it with the appropriate replacement.
+ *
+ * Also gated on `enableCopilotSdkCommitMessageGeneration`, which is the
+ * switch (including the remote feature flag) controlling whether we're
+ * allowed to use the Copilot SDK at all. This lets us disable Copilot SDK
+ * usage remotely and keeps conflict resolution from running when the SDK
+ * is off.
  */
 const isAccountEligibleForCopilotConflictResolution = (account: Account) =>
-  enableCopilotConflictResolution() && account.isCopilotDesktopEnabled === true
+  enableCopilotConflictResolution() &&
+  enableCopilotSdkCommitMessageGeneration(account) &&
+  account.isCopilotDesktopEnabled === true
 
 /**
  * Get the authenticated account to use for Copilot-powered merge conflict
