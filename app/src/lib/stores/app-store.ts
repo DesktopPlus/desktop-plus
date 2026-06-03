@@ -415,11 +415,6 @@ const LastSelectedRepositoryIDKey = 'last-selected-repository-id'
  */
 const MaxPullRequestLookups = 10
 
-/** Remove duplicate numbers while preserving first-seen order. */
-function dedupeNumbers(numbers: ReadonlyArray<number>): ReadonlyArray<number> {
-  return Array.from(new Set(numbers))
-}
-
 const RecentRepositoriesKey = 'recently-selected-repositories'
 /**
  *  maximum number of repositories shown in the "Recent" repositories group
@@ -6228,18 +6223,18 @@ export class AppStore extends TypedBaseStore<IAppState> {
     // reliable proxy for "which side carries the PRs" — a rebase, for
     // instance, makes ours the branch you're landing onto — so we gather
     // symmetrically and let the model decide what's material.
-    const ourNumbers = dedupeNumbers([
+    const ourNumbers = new Set<number>([
       ...ourSeedNumbers,
       ...extractPullRequestNumbersFromCommits(commitContext?.ourCommits ?? []),
     ])
-    const theirNumbers = dedupeNumbers(
+    const theirNumbers = new Set<number>(
       extractPullRequestNumbersFromCommits(commitContext?.theirCommits ?? [])
     )
 
     const resolved = await this.resolvePullRequestContexts(
       repository,
       ghRepo,
-      dedupeNumbers([...ourNumbers, ...theirNumbers]),
+      [...new Set([...ourNumbers, ...theirNumbers])],
       prUrl,
       seededPullRequests
     )
@@ -6248,7 +6243,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
     // in both histories (most notably the current branch's own PR).
     const claimed = new Set<number>()
     const pickSide = (
-      numbers: ReadonlyArray<number>
+      numbers: ReadonlySet<number>
     ): ReadonlyArray<IConflictContextPullRequest> => {
       const picked: Array<IConflictContextPullRequest> = []
       for (const n of numbers) {
