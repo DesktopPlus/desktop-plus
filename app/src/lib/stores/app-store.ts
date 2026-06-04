@@ -388,17 +388,31 @@ import { updateStore } from '../../ui/lib/update-store'
 import { startTimer } from '../../ui/lib/timing'
 import { BypassReasonType } from '../../ui/secret-scanning/bypass-push-protection-dialog'
 import {
-  ICopilotConflictResolutionResponse,
   IConflictResolutionProgress,
+  ICopilotConflictResolutionResponse,
 } from '../copilot-conflict-resolution'
 import {
   buildConflictContext,
   gatherCommitContext,
+  IConflictContextCommit,
+  IConflictContextPullRequest,
+  IConflictResolutionContext,
 } from '../copilot-conflict-context'
+import {
+  extractPullRequestNumbersFromCommits,
+  findPullRequestsByNumbers,
+} from '../pull-request-refs'
 import { resolveWithin } from '../path'
 import { WorktreeEntry } from '../../models/worktree'
 
 const LastSelectedRepositoryIDKey = 'last-selected-repository-id'
+
+/**
+ * Upper bound on how many pull requests we'll resolve (across both sides)
+ * when gathering Copilot conflict-resolution context. Caps best-effort API
+ * lookups so a noisy set of `#NNNN` references can't stall resolution.
+ */
+const MaxPullRequestLookups = 10
 
 const RecentRepositoriesKey = 'recently-selected-repositories'
 /**
@@ -6076,28 +6090,12 @@ export class AppStore extends TypedBaseStore<IAppState> {
         `[Timing] resolving ${conflictedFiles.length} conflicted file(s)`
       )
 
-      const contextTimer = startTimer('build conflict context', repository)
-      const context = await buildConflictContext(
-        labels.ourLabel,
-        labels.theirLabel,
-        repository.path,
-        conflictedFiles
+      const context = await this.gatherConflictResolutionContext(
+        repository,
+        labels,
+        conflictedFiles,
+        state
       )
-      contextTimer.done()
-
-      // Best-effort enrichment — never block resolution on these
-      const commitContextTimer = startTimer('gather commit context', repository)
-      const commitContext =
-        labels.ourRef && labels.theirRef
-          ? await gatherCommitContext(
-              repository,
-              labels.ourRef,
-              labels.theirRef
-            ).catch(() => null)
-          : null
-      commitContextTimer.done()
-
-      const currentPullRequest = state.branchesState.currentPullRequest ?? null
 
       const resolveTimer = startTimer(
         'copilotStore.resolveConflicts',
@@ -6107,15 +6105,15 @@ export class AppStore extends TypedBaseStore<IAppState> {
         this.selectedCopilotModels['conflict-resolution'] ?? null
       )
       try {
-        return await this.copilotStore.resolveConflicts(
+        const result = await this.copilotStore.resolveConflicts(
           context,
-          commitContext,
-          currentPullRequest,
           repository.path,
           modelRequest,
           onProgress,
           signal
         )
+
+        return result
       } finally {
         resolveTimer.done()
       }
@@ -6130,6 +6128,185 @@ export class AppStore extends TypedBaseStore<IAppState> {
     } finally {
       totalTimer.done()
     }
+  }
+
+  /**
+   * Gather the full, display-ready context for a Copilot conflict
+   * resolution in a single pass: the conflicted file hunks, the recent
+   * commits from both sides (with remote-reachability and github.com
+   * links), and the pull requests we can associate with each side.
+   *
+   * This is the one place context is collected. The same object feeds the
+   * Copilot prompt *and* the dialog's summary card, so there's no second
+   * pass to re-hydrate the model's cited references.
+   *
+   * Pull requests are resolved local-cache-first; only numbers we can't
+   * find locally are fetched from the API (capped, best-effort) so a
+   * merged PR's title and body still reach the prompt.
+   */
+  private async gatherConflictResolutionContext(
+    repository: Repository,
+    labels: {
+      readonly ourLabel: string
+      readonly theirLabel: string
+      readonly ourRef: string | undefined
+      readonly theirRef: string | undefined
+    },
+    conflictedFiles: ReadonlyArray<{ readonly path: string }>,
+    state: IRepositoryState
+  ): Promise<IConflictResolutionContext> {
+    const contextTimer = startTimer('build conflict context', repository)
+    const fileContext = await buildConflictContext(
+      labels.ourLabel,
+      labels.theirLabel,
+      repository.path,
+      conflictedFiles
+    )
+    contextTimer.done()
+
+    // Best-effort enrichment — never block resolution on these.
+    const commitContextTimer = startTimer('gather commit context', repository)
+    const commitContext =
+      labels.ourRef && labels.theirRef
+        ? await gatherCommitContext(
+            repository,
+            labels.ourRef,
+            labels.theirRef
+          ).catch(() => null)
+        : null
+    commitContextTimer.done()
+
+    const ghRepo = isRepositoryWithGitHubRepository(repository)
+      ? repository.gitHubRepository
+      : null
+
+    // Treat a commit as "on the remote" when it isn't in the git store's
+    // local-only set. localCommitSHAs tracks current-branch commits that
+    // haven't been pushed yet, so anything else (most notably theirs-side
+    // commits that arrived via fetch) is safe to link to github.com.
+    const localShas = new Set(
+      this.gitStoreCache.get(repository).localCommitSHAs
+    )
+    const toContextCommit = (commit: Commit): IConflictContextCommit => ({
+      sha: commit.sha,
+      shortSha: commit.shortSha,
+      summary: commit.summary,
+      isOnRemote: !localShas.has(commit.sha),
+    })
+
+    const currentPullRequest = state.branchesState.currentPullRequest
+    const seededPullRequests = new Map<number, IConflictContextPullRequest>()
+    if (currentPullRequest !== null) {
+      // The current branch's own PR is authoritative from app state and may
+      // be merged/closed (and thus absent from the open-PR cache), so seed
+      // it directly rather than looking it up.
+      seededPullRequests.set(currentPullRequest.pullRequestNumber, {
+        number: currentPullRequest.pullRequestNumber,
+        title: currentPullRequest.title,
+        body: currentPullRequest.body,
+      })
+    }
+
+    // Mine PR references from *both* sides' commits. Ours-vs-theirs is not a
+    // reliable proxy for "which side carries the PRs" — a rebase, for
+    // instance, makes ours the branch you're landing onto — so we gather
+    // symmetrically and let the model decide what's material.
+    const allPrNumbers = new Set<number>([
+      ...seededPullRequests.keys(),
+      ...extractPullRequestNumbersFromCommits(commitContext?.ourCommits ?? []),
+      ...extractPullRequestNumbersFromCommits(
+        commitContext?.theirCommits ?? []
+      ),
+    ])
+
+    const resolved = await this.resolvePullRequestContexts(
+      repository,
+      ghRepo,
+      [...allPrNumbers],
+      seededPullRequests
+    )
+
+    // Build a deterministic flat list from the input number order.
+    const pullRequests = [...allPrNumbers]
+      .map(n => resolved.get(n))
+      .filter((pr): pr is IConflictContextPullRequest => pr !== undefined)
+
+    return {
+      ...fileContext,
+      pullRequests,
+      ourCommits: (commitContext?.ourCommits ?? []).map(toContextCommit),
+      theirCommits: (commitContext?.theirCommits ?? []).map(toContextCommit),
+    }
+  }
+
+  /**
+   * Resolve a set of pull-request numbers into display-ready context,
+   * preferring the local cache and falling back to the API for any missing
+   * (e.g. merged PRs no longer in the open-PR cache). Capped and
+   * best-effort: failures are logged or skipped. `seeded` entries are
+   * treated as already resolved and never re-fetched.
+   */
+  private async resolvePullRequestContexts(
+    repository: Repository,
+    ghRepo: GitHubRepository | null,
+    numbers: ReadonlyArray<number>,
+    seeded: ReadonlyMap<number, IConflictContextPullRequest>
+  ): Promise<Map<number, IConflictContextPullRequest>> {
+    const byNumber = new Map<number, IConflictContextPullRequest>(seeded)
+
+    const lookups = numbers
+      .filter(n => !byNumber.has(n))
+      .slice(0, MaxPullRequestLookups)
+    if (lookups.length === 0 || !isRepositoryWithGitHubRepository(repository)) {
+      return byNumber
+    }
+
+    try {
+      const allPRs = await this.pullRequestCoordinator.getAllPullRequests(
+        repository
+      )
+      for (const pr of findPullRequestsByNumbers(lookups, allPRs)) {
+        byNumber.set(pr.pullRequestNumber, {
+          number: pr.pullRequestNumber,
+          title: pr.title,
+          body: pr.body,
+        })
+      }
+    } catch (e) {
+      log.warn('AppStore: failed to read conflict-side PRs from local cache', e)
+    }
+
+    // Fetch anything still missing from the API so merged PRs (no longer in
+    // the open-PR cache) still contribute their title and body.
+    const missing = lookups.filter(n => !byNumber.has(n))
+    if (missing.length > 0 && ghRepo) {
+      const account = getAccountForRepository(this.accounts, repository)
+      if (account !== null) {
+        const api = API.fromAccount(account)
+        await Promise.all(
+          missing.map(async prNumber => {
+            try {
+              const apiPr = await api.fetchPullRequest(
+                ghRepo.owner.login,
+                ghRepo.name,
+                String(prNumber)
+              )
+              if (apiPr) {
+                byNumber.set(prNumber, {
+                  number: prNumber,
+                  title: apiPr.title,
+                  body: apiPr.body,
+                })
+              }
+            } catch {
+              // Best-effort — skip PRs we can't fetch.
+            }
+          })
+        )
+      }
+    }
+
+    return byNumber
   }
 
   /**

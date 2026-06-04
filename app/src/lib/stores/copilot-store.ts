@@ -29,12 +29,10 @@ import {
   createDependencyAwareChunks,
 } from '../copilot-conflict-resolution'
 import {
-  ICopilotConflictContext,
-  IConflictCommitContext,
+  IConflictResolutionContext,
   IFileConflictContext,
   formatConflictContextForPrompt,
 } from '../copilot-conflict-context'
-import { PullRequest } from '../../models/pull-request'
 import * as ipcRenderer from '../ipc-renderer'
 import { startTimer } from '../../ui/lib/timing'
 import { join } from 'path'
@@ -913,9 +911,8 @@ export class CopilotStore extends BaseStore {
    * are automatically batched into parallel chunks with up to 5 concurrent
    * requests. Each chunk is retried once on parse failure.
    *
-   * @param context - The structured conflict context (files with hunks)
-   * @param commitContext - Optional commit history from both sides
-   * @param pullRequest - Optional pull request for enrichment
+   * @param context - The unified conflict-resolution context (files,
+   *                  commits, and pull requests from both sides)
    * @param repositoryPath - Path to the repository working directory
    * @param request - Optional model selection (built-in or BYOK). When omitted
    *   the default conflict-resolution model is used.
@@ -924,9 +921,7 @@ export class CopilotStore extends BaseStore {
    * @throws Error if no GitHub.com account is available or if resolution fails
    */
   public async resolveConflicts(
-    context: ICopilotConflictContext,
-    commitContext: IConflictCommitContext | null,
-    pullRequest: PullRequest | null,
+    context: IConflictResolutionContext,
     repositoryPath: string,
     request?: CopilotModelRequest | null,
     onProgress?: (progress: IConflictResolutionProgress) => void,
@@ -949,17 +944,12 @@ export class CopilotStore extends BaseStore {
 
     try {
       if (filesTotal <= SinglePromptFileLimit) {
-        const filteredContext: ICopilotConflictContext = {
-          ourLabel: context.ourLabel,
-          theirLabel: context.theirLabel,
+        const filteredContext: IConflictResolutionContext = {
+          ...context,
           files: resolvableFiles,
         }
-        const prompt = formatConflictContextForPrompt(
-          filteredContext,
-          commitContext,
-          pullRequest
-        )
-        const resolutions = await this.resolveChunk(
+        const prompt = formatConflictContextForPrompt(filteredContext)
+        const chunkResult = await this.resolveChunk(
           client,
           prompt,
           resolvableFiles,
@@ -974,7 +964,9 @@ export class CopilotStore extends BaseStore {
           signal
         )
         onProgress?.({ filesResolved: filesTotal, filesTotal })
-        return { resolutions }
+        return {
+          resolutions: chunkResult,
+        }
       }
 
       // Batch into chunks and resolve concurrently. Smaller chunks at high
@@ -995,16 +987,11 @@ export class CopilotStore extends BaseStore {
         const batch = chunks.slice(i, i + MaxConcurrentChunks)
         const batchSettled = await Promise.allSettled(
           batch.map(chunkFiles => {
-            const chunkContext: ICopilotConflictContext = {
-              ourLabel: context.ourLabel,
-              theirLabel: context.theirLabel,
+            const chunkContext: IConflictResolutionContext = {
+              ...context,
               files: chunkFiles,
             }
-            const prompt = formatConflictContextForPrompt(
-              chunkContext,
-              commitContext,
-              pullRequest
-            )
+            const prompt = formatConflictContextForPrompt(chunkContext)
             return this.resolveChunk(
               client,
               prompt,
@@ -1046,7 +1033,9 @@ export class CopilotStore extends BaseStore {
       }
 
       onProgress?.({ filesResolved: filesTotal, filesTotal })
-      return { resolutions: allResolutions }
+      return {
+        resolutions: allResolutions,
+      }
     } finally {
       await this.stopClient(client)
     }
@@ -1059,6 +1048,8 @@ export class CopilotStore extends BaseStore {
    * Retries once on parse or validation failure. Transport errors (timeouts,
    * auth, session creation) fail fast, and user-initiated aborts are never
    * retried.
+   *
+   * Returns the validated per-file resolutions.
    */
   private async resolveChunk(
     client: CopilotClient,
