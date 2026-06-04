@@ -18,6 +18,7 @@ import { BannerType } from '../../models/banner'
 import { Account } from '../../models/account'
 import { IAPIRepoRuleset } from '../../lib/api'
 import { Emoji } from '../../lib/emoji'
+import { IConflictResolutionModelDisplay } from '../../lib/copilot/conflict-resolution-model'
 
 export interface IMultiCommitOperationProps {
   readonly repository: Repository
@@ -52,6 +53,12 @@ export interface IMultiCommitOperationProps {
    * clicked the button at least once.
    */
   readonly shouldShowCopilotConflictResolutionCallOut: boolean
+
+  /**
+   * The model name and reasoning effort to display while Copilot resolves
+   * conflicts, reflecting the user's `conflict-resolution` model selection.
+   */
+  readonly copilotConflictResolutionModel: IConflictResolutionModelDisplay
 
   /**
    * Callbacks for the conflict selection components to let the user jump out
@@ -324,6 +331,7 @@ export abstract class BaseMultiCommitOperation extends React.Component<IMultiCom
             conflictedFilePaths={conflictedFiles.map(f => f.path)}
             progress={this.props.state.copilotResolutionProgress}
             operationKind={this.props.state.operationDetail.kind}
+            model={this.props.copilotConflictResolutionModel}
             onAbort={this.onConfirmingAbort}
             onDismissed={this.onConflictsDialogDismissed}
           />

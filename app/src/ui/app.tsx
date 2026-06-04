@@ -76,6 +76,7 @@ import { EditCopilotBYOKProviderDialog } from './copilot/edit-byok-provider-dial
 import { EditCopilotBYOKModelDialog } from './copilot/edit-byok-model-dialog'
 import { ConfirmDeleteCopilotBYOKProviderDialog } from './copilot/confirm-delete-byok-provider-dialog'
 import type { IBYOKProvider } from '../lib/copilot/byok'
+import { getConflictResolutionModelDisplay } from '../lib/copilot/conflict-resolution-model'
 import { OpenWithExternalEditor } from './open-with-external-editor/open-with-external-editor'
 import { RepositorySettings } from './repository-settings'
 import { AppError } from './app-error'
@@ -2332,6 +2333,11 @@ export class App extends React.Component<IAppProps, IAppState> {
             shouldShowCopilotConflictResolutionCallOut={
               !this.state.copilotConflictResolutionButtonClicked
             }
+            copilotConflictResolutionModel={getConflictResolutionModelDisplay(
+              this.state.selectedCopilotModels['conflict-resolution'] ?? null,
+              this.state.copilotModels,
+              this.state.byokProviders
+            )}
             openFileInExternalEditor={this.openFileInExternalEditor}
             resolvedExternalEditor={this.state.resolvedExternalEditor}
             openRepositoryInShell={this.openCurrentRepositoryInShell}

@@ -6,6 +6,7 @@ import { Select } from '../lib/select'
 import { Row } from '../lib/row'
 import { IBYOKModel } from '../../lib/copilot/byok'
 import {
+  formatReasoningEffort,
   ReasoningEffort,
   ReasoningEffortOrder,
 } from '../../lib/stores/copilot-store'
@@ -172,18 +173,5 @@ export class EditCopilotBYOKModelDialog extends React.Component<
       return `Another model with the identifier '${id}' already exists.`
     }
     return null
-  }
-}
-
-function formatReasoningEffort(effort: ReasoningEffort): string {
-  switch (effort) {
-    case 'low':
-      return 'Low'
-    case 'medium':
-      return 'Medium'
-    case 'high':
-      return 'High'
-    case 'xhigh':
-      return 'Extra high'
   }
 }

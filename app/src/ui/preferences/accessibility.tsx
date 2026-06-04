@@ -64,13 +64,14 @@ export class Accessibility extends React.Component<
   }
 
   private renderExampleLink() {
-    // The example link is rendered with inline style to override the global setting.
+    // The example link is rendered with inline style to override the global
+    // underline setting since this is a non-interactive visual preview.
     const style = {
       textDecoration: this.props.underlineLinks ? 'underline' : 'none',
     }
 
     return (
-      <span className="link-button-component" style={style}>
+      <span className="link-button-component example-link" style={style}>
         This is an example link
       </span>
     )

@@ -1,27 +1,28 @@
 import * as React from 'react'
-import { DialogContent } from '../dialog'
-import { Row } from '../lib/row'
-import { Button } from '../lib/button'
-import { LinkButton } from '../lib/link-button'
-import { Octicon } from '../octicons'
-import * as octicons from '../octicons/octicons.generated'
-import { TabBar } from '../tab-bar'
 import {
-  CopilotModelPicker,
-  hasCopilotModelPickerItems,
-} from '../lib/copilot-model-picker'
+  encodeModelKey,
+  isLocalBaseUrl,
+  parseModelKey,
+  type IBYOKProvider,
+} from '../../lib/copilot/byok'
+import type { CopilotModelInfo } from '../../lib/copilot/model-info'
+import { enableCopilotConflictResolution } from '../../lib/feature-flag'
 import {
   DefaultCopilotModel,
   type CopilotFeature,
   type CopilotModelSelections,
 } from '../../lib/stores/copilot-store'
+import { DialogContent } from '../dialog'
+import { Button } from '../lib/button'
 import {
-  type IBYOKProvider,
-  encodeModelKey,
-  isLocalBaseUrl,
-  parseModelKey,
-} from '../../lib/copilot/byok'
-import type { CopilotModelInfo } from '../../lib/copilot/model-info'
+  CopilotModelPicker,
+  hasCopilotModelPickerItems
+} from '../lib/copilot-model-picker'
+import { LinkButton } from '../lib/link-button'
+import { Row } from '../lib/row'
+import { Octicon } from '../octicons'
+import * as octicons from '../octicons/octicons.generated'
+import { TabBar } from '../tab-bar'
 
 interface ICopilotPreferencesProps {
   readonly selectedCopilotModels: CopilotModelSelections
@@ -57,6 +58,15 @@ export class CopilotPreferences extends React.Component<
 
   private onCommitMessageModelChanged = (model: string) => {
     this.props.onSelectedCopilotModelChanged('commit-message-generation', model)
+  }
+
+  private onConflictResolutionModelChanged = (
+    model: string
+  ) => {
+    this.props.onSelectedCopilotModelChanged(
+      'conflict-resolution',
+      model
+    )
   }
 
   private onAddBYOKProviderClick = () => this.props.onAddBYOKProvider()
@@ -113,7 +123,7 @@ export class CopilotPreferences extends React.Component<
       )
     }
 
-    const { copilotModels, byokProviders, selectedCopilotModels } = this.props
+    const { copilotModels, byokProviders } = this.props
 
     if (copilotModels === null) {
       return <p>Loading available models…</p>
@@ -122,14 +132,6 @@ export class CopilotPreferences extends React.Component<
     if (!hasCopilotModelPickerItems(copilotModels, byokProviders)) {
       return <p>No models available. Check your Copilot subscription.</p>
     }
-
-    const rawSelection =
-      selectedCopilotModels['commit-message-generation'] ?? null
-    const value = this.resolveSelectionValue(
-      copilotModels,
-      byokProviders,
-      rawSelection
-    )
 
     return (
       <>
@@ -142,23 +144,53 @@ export class CopilotPreferences extends React.Component<
             .
           </p>
         </Row>
-        <CopilotModelPicker
-          label={
-            __DARWIN__
-              ? 'Commit Message Generation'
-              : 'Commit message generation'
-          }
-          copilotModels={copilotModels}
-          byokProviders={byokProviders}
-          value={value}
-          onChange={this.onCommitMessageModelChanged}
-        />
+        {this.renderFeatureModelPicker(
+          copilotModels,
+          'commit-message-generation',
+          __DARWIN__
+            ? 'Commit Message Generation'
+            : 'Commit message generation',
+          this.onCommitMessageModelChanged
+        )}
         <p className="settings-description">
           <LinkButton uri="https://docs.github.com/en/desktop/making-changes-in-a-branch/committing-and-reviewing-changes-to-your-project-in-github-desktop#write-a-commit-message-and-push-your-changes">
             Learn more about generating commit messages.
           </LinkButton>
         </p>
+        {enableCopilotConflictResolution() &&
+          this.renderFeatureModelPicker(
+            copilotModels,
+            'conflict-resolution',
+            __DARWIN__ ? 'Conflict Resolution' : 'Conflict resolution',
+            this.onConflictResolutionModelChanged
+          )}
       </>
+    )
+  }
+
+  private renderFeatureModelPicker(
+    copilotModels: ReadonlyArray<CopilotModelInfo>,
+    feature: CopilotFeature,
+    label: string,
+    onChange: (model: string) => void
+  ): JSX.Element {
+    const { byokProviders, selectedCopilotModels } = this.props
+
+    const rawSelection = selectedCopilotModels[feature] ?? null
+    const value = this.resolveSelectionValue(
+      copilotModels,
+      byokProviders,
+      rawSelection
+    )
+
+    return (
+              <CopilotModelPicker
+          label={label}
+          copilotModels={copilotModels}
+          byokProviders={byokProviders}
+          value={value}
+          onChange={onChange}
+        />
     )
   }
 

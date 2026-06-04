@@ -1081,6 +1081,14 @@ export interface IMultiCommitOperationState {
   readonly copilotResolutionProgress: IConflictResolutionProgress | null
 
   /**
+   * Controller used to cancel the in-flight Copilot conflict resolution. Set
+   * while a resolution is running so the loading dialog's "Stop" button can
+   * actually tear down the underlying SDK turn (rather than just navigating the
+   * UI away). Null when no resolution is in progress.
+   */
+  readonly copilotResolutionAbortController: AbortController | null
+
+  /**
    * The commit id of the tip of the branch user is modifying in the operation.
    *
    * Uses:

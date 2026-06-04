@@ -1180,6 +1180,14 @@ export class Dispatcher {
   }
 
   /**
+   * Cancel the in-flight Copilot conflict resolution, tearing down the
+   * underlying SDK turn immediately rather than letting it run to completion.
+   */
+  public abortCopilotConflictResolution(repository: Repository): void {
+    return this.appStore._abortCopilotConflictResolution(repository)
+  }
+
+  /**
    * User-facing entry point invoked from the manual conflicts dialog's
    * "Resolve with Copilot" button. Handles account-availability check,
    * first-click tracking, and the AI-tool disclaimer popup before
