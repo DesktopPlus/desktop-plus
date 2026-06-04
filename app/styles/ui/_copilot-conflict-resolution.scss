@@ -159,8 +159,6 @@ dialog#copilot-conflicts-dialog {
     gap: var(--spacing-third);
   }
 
-  // h2 — the main heading for the card. Visibly larger than the inner
-  // section headings so the user can tell the hierarchy at a glance.
   .copilot-conflicts-summary-title {
     display: flex;
     align-items: center;
@@ -181,137 +179,82 @@ dialog#copilot-conflicts-dialog {
     color: var(--text-secondary-color);
   }
 
-  .copilot-conflicts-summary-markdown {
-    font-size: var(--font-size);
-    line-height: 1.5;
-
-    // h3 — emitted by the model. Smaller and lighter than the card title
-    // so the user reads them as sub-sections rather than peers.
-    h3 {
-      font-size: var(--font-size);
-      font-weight: var(--font-weight-semibold);
-      margin: var(--spacing) 0 var(--spacing-third) 0;
-
-      &:first-child {
-        margin-top: 0;
-      }
-    }
-
-    p {
-      margin: 0 0 var(--spacing-half) 0;
-
-      &:last-child {
-        margin-bottom: 0;
-      }
-    }
-
-    ul,
-    ol {
-      margin: 0 0 var(--spacing-half) var(--spacing);
-      padding: 0;
-    }
-
-    code {
-      font-family: var(--font-family-monospace);
-      font-size: var(--font-size-sm);
-      padding: 1px 4px;
-      border-radius: var(--border-radius);
-      background: var(--box-alt-background-color);
-    }
-  }
-
   .copilot-conflicts-summary-references {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-third);
-  }
 
-  // h3 — same visual treatment as the model-emitted h3s above so the
-  // user reads "Context gathered" as a sibling of "Conflicting changes"
-  // / "Resolution", not a new prominent section.
-  .copilot-conflicts-summary-references-title {
-    margin: 0;
-    font-size: var(--font-size);
-    font-weight: var(--font-weight-semibold);
-  }
-
-  .copilot-conflicts-summary-reference-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-third);
-  }
-
-  .copilot-conflicts-summary-reference-item {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-half);
-    margin: 0;
-    padding: 0;
-    min-width: 0;
-  }
-
-  .copilot-conflicts-summary-reference-icon {
-    flex-shrink: 0;
-    color: var(--text-color);
-  }
-
-  .copilot-conflicts-summary-reference-title {
-    // Size to content but allow shrinking (so the id/SHA sit right after a
-    // short title, yet long titles truncate instead of pushing them out).
-    flex: 0 1 auto;
-    min-width: 0;
-    // Force block so text-overflow applies: as a flex child the linked
-    // variant (.link-button-component) would otherwise compute to a flex
-    // container, on which `text-overflow: ellipsis` has no effect.
-    display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .copilot-conflicts-summary-reference-id {
-    flex-shrink: 0;
-  }
-
-  // Inline SHA + copy button styled to match the commit-ref treatment
-  // in the history pane's expandable commit summary — same text color
-  // and size as surrounding copy, with a chromeless copy button.
-  .copilot-conflicts-summary-reference-commit-ref {
-    display: inline-flex;
-    align-items: center;
-    flex-shrink: 0;
-
-    .ref {
-      padding-left: var(--spacing-half);
+    .copilot-conflicts-summary-references-title {
+      margin: 0;
+      font-size: var(--font-size);
+      font-weight: var(--font-weight-semibold);
     }
 
-    .copy-button {
-      display: inline-flex;
-      align-items: center;
-      margin-left: var(--spacing-half);
-
-      background: transparent;
-      border: none;
+    .copilot-conflicts-summary-reference-list {
+      list-style: none;
+      margin: 0;
       padding: 0;
-      height: auto;
-      min-width: 16px;
-      line-height: 1;
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-third);
+    }
 
-      :hover {
+    .copilot-conflicts-summary-reference-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-half);
+      min-width: 0;
+
+      .copilot-conflicts-summary-reference-icon {
+        flex-shrink: 0;
+      }
+
+      .copilot-conflicts-summary-reference-title {
+        flex: 0 1 auto;
+        min-width: 0;
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .copilot-conflicts-summary-reference-id {
+        flex-shrink: 0;
+      }
+
+      .copilot-conflicts-summary-reference-commit-ref {
+        display: inline-flex;
+        align-items: center;
+        flex-shrink: 0;
+
+        .ref {
+          padding-left: var(--spacing-half);
+        }
+
+        .copy-button {
+          display: inline-flex;
+          align-items: center;
+          margin-left: var(--spacing-half);
+          background: transparent;
+          border: none;
+          padding: 0;
+          height: auto;
+          min-width: 16px;
+
+          :hover {
+            color: var(--text-secondary-color);
+          }
+        }
+      }
+
+      .copilot-conflicts-summary-reference-tag {
+        font-size: var(--font-size-sm);
         color: var(--text-secondary-color);
+        padding: 0 var(--spacing-half);
+        border: var(--base-border);
+        border-radius: var(--border-radius);
+        flex-shrink: 0;
       }
     }
-  }
-
-  .copilot-conflicts-summary-reference-tag {
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary-color);
-    padding: 0 var(--spacing-half);
-    border: var(--base-border);
-    border-radius: var(--border-radius);
-    flex-shrink: 0;
   }
 }
