@@ -1,5 +1,8 @@
 {
   "releases": {
+    "3.5.12": [
+      "[Fixed] Items in lists such as branches and changed files are properly announced by screen readers on Windows - #22219"
+    ],
     "3.5.12-beta2": [
       "[Improved] Show \"No newline at end of file\" as visible text in the diff view instead of requiring a tooltip hover - #22204",
       "[Improved] Show a descriptive error dialog when restoring stashed changes fails due to conflicting changes in the working directory - #22205",
