@@ -1148,10 +1148,10 @@ export class App extends React.Component<IAppProps, IAppState> {
         repository instanceof Repository
           ? repository.alias ?? repository.name
           : repository.name
-      return `${repositoryTitle} - GitHub Desktop`
+      return `${repositoryTitle} - Desktop Plus`
     }
 
-    return 'GitHub Desktop'
+    return 'Desktop Plus'
   }
 
   private updateWindowTitle() {
