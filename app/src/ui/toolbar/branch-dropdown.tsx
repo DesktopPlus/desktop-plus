@@ -317,10 +317,12 @@ export class BranchDropdown extends React.Component<IBranchDropdownProps> {
     }
 
     const { name, type, nameWithoutRemote } = tip.branch
+    const isDefault = nameWithoutRemote === this.props.repository.defaultBranch
     const items = generateBranchContextMenuItems({
       name,
       nameWithoutRemote,
       isLocal: type === BranchType.Local,
+      isDefault,
       repoType: this.props.repository.gitHubRepository?.type,
       isInUseByOtherWorktree: false,
       onRenameBranch: this.onRenameBranch,
@@ -332,10 +334,7 @@ export class BranchDropdown extends React.Component<IBranchDropdownProps> {
       onViewPullRequestOnGitHub: this.props.currentPullRequest
         ? this.onViewPullRequestOnGithub
         : undefined,
-      onSetAsDefaultBranch:
-        nameWithoutRemote === this.props.repository.defaultBranch
-          ? undefined
-          : this.onSetAsDefaultBranch,
+      onSetAsDefaultBranch: isDefault ? undefined : this.onSetAsDefaultBranch,
       onDeleteBranch: this.onDeleteBranch,
     })
 
@@ -453,9 +452,9 @@ export class BranchDropdown extends React.Component<IBranchDropdownProps> {
     }
 
     // Only fetch remote branch
-    if (branch.type === BranchType.Remote) {
-      dispatcher.fetchRemoteBranch(repository, branch)
-    }
+    // if (branch.type === BranchType.Remote) {
+    // }
+    dispatcher.fetchRemoteBranch(repository, branch)
   }
 
   private onBadgeClick = () => {
