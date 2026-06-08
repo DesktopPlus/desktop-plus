@@ -117,7 +117,7 @@ export const enableCopilotSdkCommitMessageGeneration = (account: Account) => {
 
 /** Should we enable Copilot-powered merge conflict resolution? */
 export function enableCopilotConflictResolution(): boolean {
-  return enableDevelopmentFeatures()
+  return enableBetaFeatures()
 }
 
 export function enableAccessibleListToolTips(): boolean {
