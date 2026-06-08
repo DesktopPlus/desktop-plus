@@ -118,6 +118,7 @@ export class BranchDropdown extends React.Component<IBranchDropdownProps> {
         branchSortOrder={this.props.branchSortOrder}
         emoji={this.props.emoji}
         onDeleteBranch={this.onDeleteBranch}
+        onFetchSingleBranch={this.onFetchSingleBranch}
         onRenameBranch={this.onRenameBranch}
         onSetAsDefaultBranch={this.onSetAsDefaultBranch}
         underlineLinks={this.props.underlineLinks}
@@ -320,6 +321,7 @@ export class BranchDropdown extends React.Component<IBranchDropdownProps> {
       name,
       nameWithoutRemote,
       isLocal: type === BranchType.Local,
+      isCurrentBranch: true,
       repoType: this.props.repository.gitHubRepository?.type,
       isInUseByOtherWorktree: false,
       onRenameBranch: this.onRenameBranch,
@@ -441,6 +443,15 @@ export class BranchDropdown extends React.Component<IBranchDropdownProps> {
       branch,
       existsOnRemote: aheadBehind !== null,
     })
+  }
+
+  private onFetchSingleBranch = (branchName: string) => {
+    const branch = this.getBranchWithName(branchName)
+    if (!branch) {
+      return
+    }
+
+    this.props.dispatcher.fetchSingleBranch(this.props.repository, branch)
   }
 
   private onBadgeClick = () => {
