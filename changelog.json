@@ -4,7 +4,7 @@
       "[New] Resolve merge conflicts with Copilot - #22265",
       "[New] Add Git worktree support for managing multiple working directories of the same repository - #22102",
       "[Fixed] Restore screen reader accessibility for lists (branches, changed files) broken by react-virtualized upgrade - #22228",
-      "[Fixed] GitHub Desktop no longer prompts to initialize Git LFS for repositories that use non-LFS Git filters - #22180. Thanks @RonanLB!",
+      "[Fixed] No longer prompts to initialize Git LFS for repositories that use non-LFS Git filters - #22180. Thanks @RonanLB!",
       "[Fixed] Remove misleading pointer cursor from the example link preview in Accessibility preferences - #22244"
     ],
     "3.5.12": [
