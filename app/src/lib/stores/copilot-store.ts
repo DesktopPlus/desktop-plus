@@ -43,7 +43,7 @@ import { BaseStore } from './base-store'
 import { IRepoRulesMetadataRule } from '../../models/repo-rules'
 import { pathExists } from '../path-exists'
 import { enableCopilotSdkCommitMessageGeneration } from '../feature-flag'
-import {
+import type {
   Model,
   ModelBillingTokenPrices,
 } from '@github/copilot-sdk/dist/generated/rpc'

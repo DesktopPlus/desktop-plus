@@ -62,7 +62,7 @@ import { IAPIRepoRuleset } from './api'
 import { ICustomIntegration } from './custom-integration'
 import { Emoji } from './emoji'
 import { IUpdateState } from '../ui/lib/update-store'
-import { Model } from '@github/copilot-sdk/dist/generated/rpc'
+import type { Model } from '@github/copilot-sdk/dist/generated/rpc'
 
 export enum SelectionType {
   Repository,

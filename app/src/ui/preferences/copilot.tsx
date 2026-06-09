@@ -24,7 +24,7 @@ import { Octicon } from '../octicons'
 import * as octicons from '../octicons/octicons.generated'
 import { TabBar } from '../tab-bar'
 import { CopilotModelSelectionInfo } from './copilot-model-selection-info'
-import { Model } from '@github/copilot-sdk/dist/generated/rpc'
+import type { Model } from '@github/copilot-sdk/dist/generated/rpc'
 
 interface ICopilotPreferencesProps {
   readonly selectedCopilotModels: CopilotModelSelections
