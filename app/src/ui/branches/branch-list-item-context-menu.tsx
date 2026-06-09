@@ -72,7 +72,7 @@ export function generateBranchContextMenuItems(
   if (onPullSingleBranch) {
     items.push({ type: 'separator' })
     items.push({
-      label: __DARWIN__ ? 'Pull branch' : 'Pull branch',
+      label: __DARWIN__ ? 'Pull Branch' : 'Pull branch',
       action: () => onPullSingleBranch(name),
       enabled: true,
     })
