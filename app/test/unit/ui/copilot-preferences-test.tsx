@@ -64,6 +64,32 @@ const usageBilledModel = makeModel({
   },
 })
 
+const partiallyPricedModel = makeModel({
+  id: 'partially-priced-model',
+  name: 'Partially Priced Model',
+  modelPickerCategory: 'lightweight',
+  modelPickerPriceCategory: 'low',
+  billing: {
+    tokenPrices: {
+      batchSize: 1000000,
+      inputPrice: 200,
+    },
+  },
+})
+
+const missingBatchSizeModel = makeModel({
+  id: 'missing-batch-size-model',
+  name: 'Missing Batch Size Model',
+  modelPickerCategory: 'lightweight',
+  modelPickerPriceCategory: 'low',
+  billing: {
+    tokenPrices: {
+      inputPrice: 200,
+      outputPrice: 1200,
+    },
+  },
+})
+
 const models: ReadonlyArray<Model> = [
   defaultModel,
   otherModel,
@@ -313,6 +339,61 @@ describe('CopilotPreferences', () => {
     fireEvent.keyDown(costsButton, { key: 'Escape' })
 
     assert.strictEqual(screen.queryByText('AI credits per 1M tokens'), null)
+  })
+
+  it('renders unavailable cost details for missing token prices', () => {
+    const view = render(
+      <CopilotPreferences
+        {...defaults()}
+        copilotModels={[partiallyPricedModel]}
+        selectedCopilotModels={{
+          'commit-message-generation': encodeModelKey({
+            kind: 'copilot',
+            modelId: 'partially-priced-model',
+          }),
+        }}
+      />
+    )
+
+    assert.ok(screen.getByText('Lightweight model. Use of credits: low'))
+
+    const costsButton = screen.getByRole('button', {
+      name: 'Show Copilot model credit costs',
+    })
+    fireEvent.click(costsButton)
+
+    const costsPopover = view.container.querySelector(
+      '.copilot-model-picker-cost-details'
+    )
+    assert.ok(costsPopover instanceof HTMLElement)
+
+    assert.ok(within(costsPopover).getByText('AI credits per 1M tokens'))
+    assert.ok(within(costsPopover).getByText('200'))
+    assert.strictEqual(within(costsPopover).getAllByText('Unavailable').length, 2)
+  })
+
+  it('omits the cost details button when token batch size is missing', () => {
+    render(
+      <CopilotPreferences
+        {...defaults()}
+        copilotModels={[missingBatchSizeModel]}
+        selectedCopilotModels={{
+          'commit-message-generation': encodeModelKey({
+            kind: 'copilot',
+            modelId: 'missing-batch-size-model',
+          }),
+        }}
+      />
+    )
+
+    assert.ok(screen.getByText('Lightweight model. Use of credits: low'))
+    assert.strictEqual(
+      screen.queryByRole('button', {
+        name: 'Show Copilot model credit costs',
+      }),
+      null
+    )
+    assert.strictEqual(screen.queryByText(/AI credits per/), null)
   })
 
   it('treats legacy bare-string selections as Copilot models', () => {

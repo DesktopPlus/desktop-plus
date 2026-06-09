@@ -191,6 +191,7 @@ describe('getPreferredDefaultModel', () => {
         tokenPrices: {
           batchSize: 1000,
           inputPrice: 10,
+          outputPrice: 10,
         },
       },
     })
@@ -201,6 +202,7 @@ describe('getPreferredDefaultModel', () => {
         tokenPrices: {
           batchSize: 1000000,
           inputPrice: 100,
+          outputPrice: 100,
         },
       },
     })
@@ -259,11 +261,39 @@ describe('getPreferredDefaultModel', () => {
         tokenPrices: {
           batchSize: 1000000,
           inputPrice: 500,
+          outputPrice: 1000,
         },
       },
     })
     const result = getPreferredDefaultModel([noBilling, withBilling])
     assert.strictEqual(result, withBilling)
+  })
+
+  it('treats models with incomplete token prices as most expensive in usage billing', () => {
+    const incomplete = makeModel({
+      id: 'incomplete',
+      name: 'Incomplete',
+      billing: {
+        tokenPrices: {
+          batchSize: 1000000,
+          inputPrice: 1,
+        },
+      },
+    })
+    const complete = makeModel({
+      id: 'complete',
+      name: 'Complete',
+      billing: {
+        tokenPrices: {
+          batchSize: 1000000,
+          inputPrice: 100,
+          outputPrice: 100,
+        },
+      },
+    })
+
+    const result = getPreferredDefaultModel([incomplete, complete])
+    assert.strictEqual(result, complete)
   })
 })
 

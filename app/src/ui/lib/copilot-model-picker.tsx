@@ -36,9 +36,9 @@ interface ICopilotModelListItem extends IFilterListItem {
 
 interface ICopilotModelPickerTokenPriceDetails {
   readonly batchSize: string
-  readonly inputPrice: string
-  readonly cachePrice: string
-  readonly outputPrice: string
+  readonly inputPrice: string | null
+  readonly cachePrice: string | null
+  readonly outputPrice: string | null
 }
 
 export interface ICopilotModelPickerSelectionInfo {
@@ -47,7 +47,7 @@ export interface ICopilotModelPickerSelectionInfo {
   readonly summary: string
   readonly contextWindow: string | null
   readonly reasoningEffortLevels: string | null
-  readonly tokenPriceDetails: ICopilotModelPickerTokenPriceDetails
+  readonly tokenPriceDetails: ICopilotModelPickerTokenPriceDetails | null
 }
 
 const ModelPickerCompactRowHeight = 30
@@ -107,8 +107,28 @@ const formatReasoningEffortLevels = (
     : `${supportedReasoningEfforts.length} levels`
 }
 
-const formatAIModelCreditAmount = (value: number) =>
-  formatNumber(value, AIModelCreditNumberFormat)
+const formatAIModelCreditAmount = (value: number | undefined) =>
+  value === undefined ? null : formatNumber(value, AIModelCreditNumberFormat)
+
+const getTokenPriceDetails = (
+  tokenPrices: ModelBilling['tokenPrices']
+): ICopilotModelPickerTokenPriceDetails | null => {
+  if (tokenPrices === undefined) {
+    return null
+  }
+
+  const { batchSize } = tokenPrices
+  if (batchSize === undefined || batchSize <= 0) {
+    return null
+  }
+
+  return {
+    batchSize: formatTokenBatchSize(batchSize),
+    inputPrice: formatAIModelCreditAmount(tokenPrices.inputPrice),
+    cachePrice: formatAIModelCreditAmount(tokenPrices.cachePrice),
+    outputPrice: formatAIModelCreditAmount(tokenPrices.outputPrice),
+  }
+}
 
 const getContextWindowTokenCount = (
   promptTokenBudget: number | undefined,
@@ -194,12 +214,7 @@ export const getCopilotModelPickerSelectionInfo = (
     reasoningEffortLevels: formatReasoningEffortLevels(
       selectedModel.supportedReasoningEfforts
     ),
-    tokenPriceDetails: {
-      batchSize: formatTokenBatchSize(tokenPrices.batchSize ?? 0),
-      inputPrice: formatAIModelCreditAmount(tokenPrices.inputPrice ?? 0),
-      cachePrice: formatAIModelCreditAmount(tokenPrices.cachePrice ?? 0),
-      outputPrice: formatAIModelCreditAmount(tokenPrices.outputPrice ?? 0),
-    },
+    tokenPriceDetails: getTokenPriceDetails(tokenPrices),
   }
 }
 

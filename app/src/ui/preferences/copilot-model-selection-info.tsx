@@ -69,11 +69,11 @@ export class CopilotModelSelectionInfo extends React.Component<
     this.setState({ showCostDetails: false })
   }
 
-  private renderCostDetailsRow(label: string, value: string) {
+  private renderCostDetailsRow(label: string, value: string | null) {
     return (
       <div className="copilot-model-picker-cost-details-row">
         <dt>{label}</dt>
-        <dd>{value}</dd>
+        <dd>{value ?? 'Unavailable'}</dd>
       </div>
     )
   }
@@ -81,6 +81,11 @@ export class CopilotModelSelectionInfo extends React.Component<
   private renderCostDetailsPopover() {
     const { selectionInfo } = this.props
     const { tokenPriceDetails } = selectionInfo
+
+    if (tokenPriceDetails === null) {
+      return null
+    }
+
     const hasModelDetails =
       selectionInfo.contextWindow !== null ||
       selectionInfo.reasoningEffortLevels !== null
@@ -145,23 +150,30 @@ export class CopilotModelSelectionInfo extends React.Component<
   }
 
   public render() {
+    const hasTokenPriceDetails =
+      this.props.selectionInfo.tokenPriceDetails !== null
+
     return (
       <div className="copilot-model-picker-selection-info">
-        <Button
-          ariaControls={this.costDetailsContentId}
-          ariaExpanded={this.state.showCostDetails}
-          ariaLabel="Show Copilot model credit costs"
-          className="copilot-model-picker-selection-info-button"
-          onButtonRef={this.onCostDetailsButtonRef}
-          onClick={this.onCostDetailsButtonClick}
-          onKeyDown={this.onCostDetailsButtonKeyDown}
-          size="small"
-          tooltip="Show credit costs"
-        >
-          <Octicon symbol={octicons.info} />
-        </Button>
+        {hasTokenPriceDetails ? (
+          <Button
+            ariaControls={this.costDetailsContentId}
+            ariaExpanded={this.state.showCostDetails}
+            ariaLabel="Show Copilot model credit costs"
+            className="copilot-model-picker-selection-info-button"
+            onButtonRef={this.onCostDetailsButtonRef}
+            onClick={this.onCostDetailsButtonClick}
+            onKeyDown={this.onCostDetailsButtonKeyDown}
+            size="small"
+            tooltip="Show credit costs"
+          >
+            <Octicon symbol={octicons.info} />
+          </Button>
+        ) : null}
         <span>{this.props.selectionInfo.summary}</span>
-        {this.state.showCostDetails ? this.renderCostDetailsPopover() : null}
+        {this.state.showCostDetails && hasTokenPriceDetails
+          ? this.renderCostDetailsPopover()
+          : null}
       </div>
     )
   }

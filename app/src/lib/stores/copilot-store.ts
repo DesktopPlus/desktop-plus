@@ -379,23 +379,17 @@ function getModelBillingKind(
 }
 
 function getTokenPriceCost(tokenPrices: ModelBillingTokenPrices): number {
-  const batchSize = tokenPrices.batchSize
-  if (batchSize === undefined || batchSize <= 0) {
+  const { batchSize, inputPrice, outputPrice } = tokenPrices
+  if (
+    batchSize === undefined ||
+    batchSize <= 0 ||
+    inputPrice === undefined ||
+    outputPrice === undefined
+  ) {
     return Infinity
   }
 
-  const prices = [
-    tokenPrices.inputPrice,
-    tokenPrices.cachePrice,
-    tokenPrices.outputPrice,
-  ]
-  const knownPrices = prices.filter(
-    (price): price is number => price !== undefined
-  )
-
-  return knownPrices.length === 0
-    ? Infinity
-    : knownPrices.reduce((sum, price) => sum + price, 0) / batchSize
+  return (inputPrice + outputPrice) / batchSize
 }
 
 function getModelBillingCost(model: Model, kind: ModelBillingKind | null) {
@@ -436,10 +430,16 @@ export function getPreferredDefaultModel(
   // metadata for the active billing kind are treated as most expensive
   // (unknown cost) so we don't accidentally pick a costly model.
   const billingKind = getModelBillingKind(models)
-  return [...models].sort(
-    (a, b) =>
-      getModelBillingCost(a, billingKind) - getModelBillingCost(b, billingKind)
-  )[0]
+  return [...models].sort((a, b) => {
+    const costA = getModelBillingCost(a, billingKind)
+    const costB = getModelBillingCost(b, billingKind)
+
+    if (costA === costB) {
+      return 0
+    }
+
+    return costA < costB ? -1 : 1
+  })[0]
 }
 
 /**
