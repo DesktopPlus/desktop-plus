@@ -152,15 +152,20 @@ export class CopilotModelSelectionInfo extends React.Component<
   public render() {
     const hasTokenPriceDetails =
       this.props.selectionInfo.tokenPriceDetails !== null
+    const costDetailsContentId = this.state.showCostDetails
+      ? this.costDetailsContentId
+      : undefined
 
     return (
       <div className="copilot-model-picker-selection-info">
         {hasTokenPriceDetails ? (
           <Button
-            ariaControls={this.costDetailsContentId}
+            ariaControls={costDetailsContentId}
+            ariaDescribedBy={costDetailsContentId}
             ariaExpanded={this.state.showCostDetails}
             ariaLabel="Show Copilot model credit costs"
             className="copilot-model-picker-selection-info-button"
+            applyTooltipAriaDescribedBy={false}
             onButtonRef={this.onCostDetailsButtonRef}
             onClick={this.onCostDetailsButtonClick}
             onKeyDown={this.onCostDetailsButtonKeyDown}

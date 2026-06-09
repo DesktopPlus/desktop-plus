@@ -8,6 +8,11 @@ import {
   waitFor,
   within,
 } from '../../helpers/ui/render'
+import {
+  advanceTimersBy,
+  enableTestTimers,
+  resetTestTimers,
+} from '../../helpers/ui/timers'
 import { CopilotPreferences } from '../../../src/ui/preferences/copilot'
 import {
   DefaultCopilotModel,
@@ -302,7 +307,10 @@ describe('CopilotPreferences', () => {
     )
   })
 
-  it('shows usage billing below the selected model picker', () => {
+  it('shows usage billing below the selected model picker', async t => {
+    enableTestTimers(['setTimeout'])
+    t.after(resetTestTimers)
+
     const view = render(
       <CopilotPreferences
         {...defaults()}
@@ -328,6 +336,8 @@ describe('CopilotPreferences', () => {
     })
 
     assert.strictEqual(costsButton.getAttribute('aria-expanded'), 'false')
+    assert.strictEqual(costsButton.getAttribute('aria-controls'), null)
+    assert.strictEqual(costsButton.getAttribute('aria-describedby'), null)
 
     fireEvent.click(costsButton)
 
@@ -338,6 +348,24 @@ describe('CopilotPreferences', () => {
       '.copilot-model-picker-cost-details'
     )
     assert.ok(costsPopover instanceof HTMLElement)
+    assert.strictEqual(
+      costsButton.getAttribute('aria-controls'),
+      costsPopover.id
+    )
+    assert.strictEqual(
+      costsButton.getAttribute('aria-describedby'),
+      costsPopover.id
+    )
+
+    fireEvent.mouseEnter(costsButton, { clientX: 20, clientY: 20 })
+    fireEvent.mouseMove(costsButton, { clientX: 20, clientY: 20 })
+    advanceTimersBy(400)
+
+    await waitFor(() => assert.ok(screen.getByText('Show credit costs')))
+    assert.strictEqual(
+      costsButton.getAttribute('aria-describedby'),
+      costsPopover.id
+    )
 
     assert.ok(within(costsPopover).getByText('Usage Billed Model'))
     assert.ok(within(costsPopover).getByText('Lightweight'))
