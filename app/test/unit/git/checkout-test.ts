@@ -24,6 +24,7 @@ describe('git/checkout', () => {
 
     const branch: Branch = {
       name: '..',
+      revSpec: '..',
       nameWithoutRemote: '..',
       upstream: null,
       isGone: false,
@@ -65,6 +66,40 @@ describe('git/checkout', () => {
 
     const validBranch = tip as IValidBranch
     assert.equal(validBranch.branch.name, 'commit-with-long-description')
+  })
+
+  it('checks out the branch when a tag shares its name', async t => {
+    const repository = await setupEmptyRepository(t)
+    const { path } = repository
+
+    await exec(['commit', '--allow-empty', '-m', 'initial'], path)
+    // a tag named after the branch makes the short branch name ambiguous
+    await exec(['tag', 'master'], path)
+    await exec(['commit', '--allow-empty', '-m', 'second'], path)
+    await exec(['branch', 'other', 'HEAD'], path)
+    await exec(['checkout', 'other', '--'], path)
+
+    const branches = await getBranches(repository, 'refs/heads/master')
+
+    if (branches.length === 0) {
+      throw new Error(`Could not find branch: master`)
+    }
+
+    // the name should not be the disambiguated short name (`heads/master`)
+    // that Git reports when a tag shares the branch's name
+    assert.equal(branches[0].name, 'master')
+    assert.equal(branches[0].revSpec, 'heads/master')
+
+    await checkoutBranch(repository, branches[0], null)
+
+    const store = new GitStore(repository, shell, new TestStatsStore())
+    await store.loadStatus()
+    const tip = store.tip
+
+    assert.equal(tip.kind, TipState.Valid)
+
+    const validBranch = tip as IValidBranch
+    assert.equal(validBranch.branch.name, 'master')
   })
 
   it('can checkout a branch when it exists on multiple remotes', async t => {

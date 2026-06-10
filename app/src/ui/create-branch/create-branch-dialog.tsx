@@ -428,7 +428,7 @@ export class CreateBranch extends React.Component<
         return
       }
 
-      startPoint = defaultBranch.name
+      startPoint = defaultBranch.ref
     } else if (this.state.startPoint === StartPoint.UpstreamDefaultBranch) {
       // This really shouldn't happen, we take all kinds of precautions
       // to make sure the startPoint state is valid given the current props.
@@ -442,7 +442,7 @@ export class CreateBranch extends React.Component<
         return
       }
 
-      startPoint = upstreamDefaultBranch.name
+      startPoint = upstreamDefaultBranch.ref
       noTrack = true
     }
 

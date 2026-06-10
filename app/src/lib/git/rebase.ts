@@ -392,8 +392,10 @@ export async function rebase(
     })
   }
 
+  // The base branch is a revision argument (revSpec), while the target
+  // branch is looked up as a branch and must be the plain name.
   const result = await git(
-    [...gitRebaseArguments(), 'rebase', baseBranch.name, targetBranch.name],
+    [...gitRebaseArguments(), 'rebase', baseBranch.revSpec, targetBranch.name],
     repository.path,
     'rebase',
     options

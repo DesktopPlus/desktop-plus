@@ -702,7 +702,7 @@ export class GitStore extends BaseStore {
 
     let localCommits: ReadonlyArray<Commit> | undefined
     if (branch.upstream) {
-      const range = revRange(branch.upstream, branch.name)
+      const range = revRange(branch.upstream, branch.ref)
       localCommits = await this.performFailableOperation(() =>
         getCommits(this.repository, range, CommitBatchSize, skip)
       )
@@ -1102,7 +1102,7 @@ export class GitStore extends BaseStore {
         currentBranch.upstream !== null
       ) {
         const range = revSymmetricDifference(
-          currentBranch.name,
+          currentBranch.ref,
           currentBranch.upstream
         )
         this._aheadBehind = await getAheadBehind(this.repository, range)
@@ -1629,7 +1629,7 @@ export class GitStore extends BaseStore {
 
     return this.performFailableOperation(
       () =>
-        merge(this.repository, branch.name, {
+        merge(this.repository, branch.revSpec, {
           ...options,
           onHookFailure:
             onHookFailure === undefined
@@ -1872,7 +1872,7 @@ export class GitStore extends BaseStore {
     const base = this.tip.branch
     const aheadBehind = await getAheadBehind(
       this.repository,
-      revSymmetricDifference(base.name, branch.name)
+      revSymmetricDifference(base.ref, branch.ref)
     )
 
     if (aheadBehind == null) {
@@ -1881,8 +1881,8 @@ export class GitStore extends BaseStore {
 
     const revisionRange =
       comparisonMode === ComparisonMode.Ahead
-        ? revRange(branch.name, base.name)
-        : revRange(base.name, branch.name)
+        ? revRange(branch.ref, base.ref)
+        : revRange(base.ref, branch.ref)
     const commitsToLoad =
       comparisonMode === ComparisonMode.Ahead
         ? aheadBehind.ahead
@@ -1923,7 +1923,7 @@ export class GitStore extends BaseStore {
     baseBranch: Branch,
     comparisonBranch: Branch
   ): Promise<ReadonlyArray<Commit>> {
-    const revisionRange = revRange(baseBranch.name, comparisonBranch.name)
+    const revisionRange = revRange(baseBranch.ref, comparisonBranch.ref)
     const commits = await this.performFailableOperation(() =>
       getCommits(this.repository, revisionRange)
     )

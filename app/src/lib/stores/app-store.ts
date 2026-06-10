@@ -6152,7 +6152,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
         if (tip.branch.upstream !== null) {
           mergeBase = await getMergeBase(
             repository,
-            tip.branch.name,
+            tip.branch.ref,
             tip.branch.upstream
           )
 
@@ -10168,8 +10168,8 @@ export class AppStore extends TypedBaseStore<IAppState> {
         ? await gitStore.performFailableOperation(() =>
             getBranchMergeBaseChangedFiles(
               repository,
-              baseBranch.name,
-              currentBranch.name,
+              baseBranch.ref,
+              currentBranch.ref,
               commitsBetweenBranches[0]
             )
           )
@@ -10331,8 +10331,8 @@ export class AppStore extends TypedBaseStore<IAppState> {
           getBranchMergeBaseDiff(
             repository,
             file,
-            baseBranch.name,
-            currentBranch.name,
+            baseBranch.ref,
+            currentBranch.ref,
             this.hideWhitespaceInPullRequestDiff,
             commitSHAs[0]
           )

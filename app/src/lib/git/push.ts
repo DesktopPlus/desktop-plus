@@ -4,6 +4,7 @@ import { IPushProgress } from '../../models/progress'
 import { PushProgressParser, executionOptionsWithProgress } from '../progress'
 import { IRemote } from '../../models/remote'
 import { envForRemoteOperation } from './environment'
+import { formatAsLocalRef } from './refs'
 import { Branch } from '../../models/branch'
 
 export type PushOptions = {
@@ -54,10 +55,13 @@ export async function push(
   options?: PushOptions,
   progressCallback?: (progress: IPushProgress) => void
 ): Promise<void> {
+  // Qualify the refspec: a plain name is rejected as ambiguous if a tag of
+  // the same name exists.
+  const localRef = formatAsLocalRef(localBranch)
   const args = [
     'push',
     remote.name,
-    remoteBranch ? `${localBranch}:${remoteBranch}` : localBranch,
+    remoteBranch ? `${localRef}:${formatAsLocalRef(remoteBranch)}` : localRef,
   ]
 
   if (tagsToPush !== null) {

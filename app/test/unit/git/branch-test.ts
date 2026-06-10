@@ -188,6 +188,23 @@ describe('git/branch', () => {
 
       assert.equal((await getBranches(repository, ref)).length, 0)
     })
+
+    it('deletes a local branch when a tag shares its name', async t => {
+      const path = await setupFixtureRepository(t, 'test-repo')
+      const repository = new Repository(path, -1, null, false)
+
+      const name = 'test-branch'
+      await createBranch(repository, name, null)
+      await git(['tag', name], repository.path, 'createTag')
+
+      const ref = `refs/heads/${name}`
+      const [branch] = await getBranches(repository, ref)
+      assertNonNullable(branch, `Could not create branch ${name}`)
+
+      await deleteLocalBranch(repository, branch.name)
+
+      assert.equal((await getBranches(repository, ref)).length, 0)
+    })
   })
 
   describe('deleteRemoteBranch', () => {

@@ -26,13 +26,17 @@ function getCheckoutArgs(progressCallback?: ProgressCallback) {
 }
 
 async function getBranchCheckoutArgs(branch: Branch) {
-  return [
-    branch.name,
-    ...(branch.type === BranchType.Remote
-      ? ['-b', branch.nameWithoutRemote]
-      : []),
-    '--',
-  ]
+  if (branch.type === BranchType.Remote) {
+    return [branch.revSpec, '-b', branch.nameWithoutRemote, '--']
+  }
+
+  // Only the plain branch name attaches HEAD; anything else (a qualified
+  // ref, or `heads/main` when a tag named `main` exists) detaches it.
+  const name = branch.ref.startsWith('refs/heads/')
+    ? branch.ref.substring('refs/heads/'.length)
+    : branch.name
+
+  return [name, '--']
 }
 
 async function getCheckoutOpts(

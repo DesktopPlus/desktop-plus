@@ -50,6 +50,13 @@ export enum StartPoint {
 /** A branch as loaded from Git. */
 export class Branch {
   /**
+   * A short name that unambiguously resolves to this branch in revision
+   * contexts. Same as `name` unless another ref shares the branch's name
+   * (e.g. `heads/main` when a tag named `main` exists).
+   */
+  public readonly revSpec: string
+
+  /**
    * A branch as loaded from Git.
    *
    * @param name The short name of the branch. E.g., `main`.
@@ -57,6 +64,7 @@ export class Branch {
    * @param tip Basic information (sha and author) of the latest commit on the branch.
    * @param type The type of branch, e.g., local or remote.
    * @param ref The canonical ref of the branch
+   * @param revSpec An unambiguous short name for revision contexts, defaults to `name`.
    */
   public constructor(
     public readonly name: string,
@@ -64,8 +72,11 @@ export class Branch {
     public readonly tip: IBranchTip,
     public readonly type: BranchType,
     public readonly ref: string,
-    public readonly isGone: boolean
-  ) {}
+    public readonly isGone: boolean,
+    revSpec?: string
+  ) {
+    this.revSpec = revSpec ?? name
+  }
 
   /** The name of the upstream's remote. */
   public get upstreamRemoteName(): string | null {

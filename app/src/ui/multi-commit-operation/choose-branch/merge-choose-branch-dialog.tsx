@@ -129,7 +129,7 @@ export class MergeChooseBranchDialog extends React.Component<
 
     // Commit count is used in the UI output as well as determining whether the
     // submit button is enabled
-    const range = revSymmetricDifference('', branch.name)
+    const range = revSymmetricDifference('', branch.ref)
     const aheadBehind = await getAheadBehind(repository, range)
     const commitCount = aheadBehind ? aheadBehind.behind : 0
 

@@ -111,7 +111,7 @@ export class BranchPruner {
   ): Promise<ReadonlyMap<string, string>> {
     const gitStore = this.gitStoreCache.get(repository)
     const mergedBranches = await gitStore.performFailableOperation(() =>
-      getMergedBranches(repository, defaultBranch.name)
+      getMergedBranches(repository, defaultBranch.ref)
     )
 
     if (mergedBranches === undefined) {

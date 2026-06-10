@@ -61,13 +61,20 @@ export async function getBranches(
       ? BranchType.Local
       : BranchType.Remote
 
+    // Derive the name from the canonical ref: Git's short name may be
+    // disambiguated (e.g. `heads/main` when a tag named `main` exists).
+    const name =
+      type === BranchType.Local
+        ? ref.fullName.substring('refs/heads/'.length)
+        : ref.fullName.substring('refs/remotes/'.length)
+
     const upstream =
       ref.upstreamShortName.length > 0 ? ref.upstreamShortName : null
 
     const isGone = ['[gone]', '(gone)'].includes(ref.upstreamTrackingBranch)
 
     branches.push(
-      new Branch(ref.shortName, upstream, tip, type, ref.fullName, isGone)
+      new Branch(name, upstream, tip, type, ref.fullName, isGone, ref.shortName)
     )
   }
 
