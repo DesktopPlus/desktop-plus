@@ -692,11 +692,17 @@ export class CopilotStore extends BaseStore {
    * @throws Error if no GitHub.com account is available
    */
   private async createClient(repositoryPath?: string): Promise<CopilotClient> {
-    if (this.currentAccount === null || !this.currentAccount.token) {
+    const account = this.currentAccount
+
+    if (account === null || !account.token) {
       throw new Error(
         'Cannot create Copilot client: No GitHub.com account available'
       )
     }
+
+    const ghHost = isDotComAccount(account)
+      ? undefined
+      : new URL(account.endpoint).host
 
     // This relies on the fact that Copilot CLI is bundled with the app, but not
     // as a "single executable application", but the files from the npm package.
@@ -730,9 +736,10 @@ export class CopilotStore extends BaseStore {
       env: {
         ELECTRON_RUN_AS_NODE: '1',
         COPILOT_RUN_APP: '1',
+        GH_HOST: ghHost,
       },
       workingDirectory: repositoryPath,
-      gitHubToken: this.currentAccount.token,
+      gitHubToken: account.token,
     })
   }
 
