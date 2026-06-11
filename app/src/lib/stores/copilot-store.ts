@@ -430,16 +430,11 @@ export function getPreferredDefaultModel(
   // metadata for the active billing kind are treated as most expensive
   // (unknown cost) so we don't accidentally pick a costly model.
   const billingKind = getModelBillingKind(models)
-  return [...models].sort((a, b) => {
-    const costA = getModelBillingCost(a, billingKind)
-    const costB = getModelBillingCost(b, billingKind)
+  const getCost = (model: Model) => getModelBillingCost(model, billingKind)
 
-    if (costA === costB) {
-      return 0
-    }
-
-    return costA < costB ? -1 : 1
-  })[0]
+  return models.reduce((cheapestModel, model) =>
+    getCost(model) < getCost(cheapestModel) ? model : cheapestModel
+  )
 }
 
 /**
