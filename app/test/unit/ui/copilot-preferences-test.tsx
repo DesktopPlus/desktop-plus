@@ -22,8 +22,43 @@ import {
   encodeModelKey,
   type IBYOKProvider,
 } from '../../../src/lib/copilot/byok'
+import { Account } from '../../../src/models/account'
 import type { Model } from '@github/copilot-sdk/dist/generated/rpc'
 import { setNumberFormatPreference } from '../../../src/models/formatting-preferences'
+
+interface IAccountOptions {
+  readonly isCopilotDesktopEnabled?: boolean
+  readonly copilotLicenseType?: string
+  readonly endpoint?: string
+  readonly id?: number
+  readonly login?: string
+}
+
+function makeAccount(options: IAccountOptions = {}): Account {
+  const isCopilotDesktopEnabled =
+    'isCopilotDesktopEnabled' in options
+      ? options.isCopilotDesktopEnabled
+      : true
+  const copilotLicenseType =
+    'copilotLicenseType' in options
+      ? options.copilotLicenseType
+      : 'COPILOT_INDIVIDUAL'
+
+  return new Account(
+    options.login ?? 'mona',
+    options.endpoint ?? 'https://api.github.com',
+    'token',
+    [],
+    '',
+    options.id ?? 1,
+    'Mona Lisa',
+    'free',
+    'https://copilot-proxy.githubusercontent.com',
+    isCopilotDesktopEnabled,
+    [],
+    copilotLicenseType
+  )
+}
 
 function makeModel(
   overrides: Partial<Model> & Pick<Model, 'id' | 'name'>
@@ -198,9 +233,12 @@ function defaults() {
   return {
     selectedCopilotModels: {},
     copilotModels: models,
-    copilotAvailable: true,
+    accounts: [makeAccount()],
     byokProviders: [],
     showBYOKSettings: false,
+    onSignIn: () => {},
+    onOpenCopilotPlans: () => {},
+    onOpenCopilotFeatureSettings: () => {},
     onSelectedCopilotModelChanged: () => {},
     onAddBYOKProvider: () => {},
     onEditBYOKProvider: () => {},
@@ -263,21 +301,204 @@ function getCostDetailsValue(container: HTMLElement, label: string): string {
 }
 
 describe('CopilotPreferences', () => {
-  it('shows sign-in message when copilot is not available', () => {
+  it('shows sign-in call to action when no account is available', () => {
+    let called = 0
+
     render(
       <CopilotPreferences
         {...defaults()}
         copilotModels={null}
-        copilotAvailable={false}
+        accounts={[]}
+        onSignIn={() => {
+          called += 1
+        }}
       />
     )
 
     assert.ok(
       screen.getByText(
-        'Sign in to a GitHub.com account in the Accounts tab to configure Copilot settings.'
+        'Sign in to an account with a Copilot license to configure Copilot settings.'
+      )
+    )
+
+    const signInButton = screen.getByRole('button', {
+      name: 'Sign In',
+    })
+    fireEvent.click(signInButton)
+
+    assert.strictEqual(called, 1)
+    assert.strictEqual(screen.queryByRole('combobox'), null)
+  })
+
+  it('shows sign-in call to action when only GHES accounts are available', () => {
+    render(
+      <CopilotPreferences
+        {...defaults()}
+        copilotModels={null}
+        accounts={[
+          makeAccount({
+            endpoint: 'https://enterprise.example.com/api/v3',
+            id: 2,
+            login: 'octo',
+            isCopilotDesktopEnabled: undefined,
+            copilotLicenseType: undefined,
+          }),
+        ]}
+      />
+    )
+
+    assert.ok(
+      screen.getByText(
+        'Sign in to an account with a Copilot license to configure Copilot settings.'
+      )
+    )
+    assert.strictEqual(screen.queryByText('Checking Copilot access…'), null)
+    assert.strictEqual(screen.queryByRole('combobox'), null)
+  })
+
+  it('shows checking message when Copilot account metadata has not loaded', () => {
+    render(
+      <CopilotPreferences
+        {...defaults()}
+        accounts={[
+          makeAccount({
+            isCopilotDesktopEnabled: undefined,
+            copilotLicenseType: undefined,
+          }),
+        ]}
+      />
+    )
+
+    assert.ok(screen.getByText('Checking Copilot access…'))
+    assert.strictEqual(screen.queryByRole('combobox'), null)
+  })
+
+  it('shows checking message when Copilot license metadata has not loaded', () => {
+    render(
+      <CopilotPreferences
+        {...defaults()}
+        accounts={[
+          makeAccount({
+            isCopilotDesktopEnabled: true,
+            copilotLicenseType: undefined,
+          }),
+        ]}
+      />
+    )
+
+    assert.ok(screen.getByText('Checking Copilot access…'))
+    assert.strictEqual(screen.queryByRole('combobox'), null)
+  })
+
+  it('opens Copilot plans when the user does not have a Copilot license', () => {
+    let called = 0
+
+    render(
+      <CopilotPreferences
+        {...defaults()}
+        accounts={[
+          makeAccount({
+            copilotLicenseType: 'NO_ACCESS',
+          }),
+        ]}
+        onOpenCopilotPlans={() => {
+          called += 1
+        }}
+      />
+    )
+
+    assert.ok(
+      screen.getByText(
+        'Copilot features in GitHub Desktop require a GitHub Copilot license.'
+      )
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'View Copilot plans' }))
+
+    assert.strictEqual(called, 1)
+    assert.strictEqual(screen.queryByRole('combobox'), null)
+  })
+
+  it('opens Copilot feature settings when Desktop access is disabled', () => {
+    let called = 0
+    const view = render(
+      <CopilotPreferences
+        {...defaults()}
+        accounts={[
+          makeAccount({
+            isCopilotDesktopEnabled: false,
+          }),
+        ]}
+        showBYOKSettings={true}
+        onOpenCopilotFeatureSettings={() => {
+          called += 1
+        }}
+      />
+    )
+
+    assert.ok(
+      screen.getByText(
+        'A Copilot license is available for your account, but "Copilot in GitHub Desktop" is disabled in your Copilot feature settings.'
+      )
+    )
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Open Copilot feature settings' })
+    )
+
+    assert.strictEqual(called, 1)
+    assert.strictEqual(screen.queryByRole('combobox'), null)
+    assert.strictEqual(
+      view.container.querySelectorAll('[role="tab"]').length,
+      0
+    )
+  })
+
+  it('uses Copilot when a GHE account has Copilot enabled', () => {
+    render(
+      <CopilotPreferences
+        {...defaults()}
+        accounts={[
+          makeAccount({ copilotLicenseType: 'NO_ACCESS' }),
+          makeAccount({
+            endpoint: 'https://api.octocorp.ghe.com',
+            id: 2,
+            login: 'octo',
+            isCopilotDesktopEnabled: true,
+            copilotLicenseType: 'COPILOT_BUSINESS',
+          }),
+        ]}
+      />
+    )
+
+    assert.ok(screen.getByRole('button', { name: /GPT-5 mini/ }))
+    assert.strictEqual(screen.queryByText('View Copilot plans'), null)
+  })
+
+  it('ignores GHES accounts while checking Copilot access', () => {
+    render(
+      <CopilotPreferences
+        {...defaults()}
+        accounts={[
+          makeAccount({ copilotLicenseType: 'NO_ACCESS' }),
+          makeAccount({
+            endpoint: 'https://enterprise.example.com/api/v3',
+            id: 2,
+            login: 'octo',
+            isCopilotDesktopEnabled: undefined,
+            copilotLicenseType: undefined,
+          }),
+        ]}
+      />
+    )
+
+    assert.ok(
+      screen.getByText(
+        'Copilot features in GitHub Desktop require a GitHub Copilot license.'
       )
     )
     assert.strictEqual(screen.queryByRole('combobox'), null)
+    assert.strictEqual(screen.queryByText('Checking Copilot access…'), null)
   })
 
   it('shows loading message when models not yet fetched', () => {
@@ -287,9 +508,7 @@ describe('CopilotPreferences', () => {
 
   it('shows no-models message when fetch completed with empty result', () => {
     render(<CopilotPreferences {...defaults()} copilotModels={[]} />)
-    assert.ok(
-      screen.getByText('No models available. Check your Copilot subscription.')
-    )
+    assert.ok(screen.getByText('No Copilot models available.'))
   })
 
   it('renders a Copilot group with the available models', async () => {

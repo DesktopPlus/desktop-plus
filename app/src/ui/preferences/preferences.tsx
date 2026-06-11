@@ -116,7 +116,6 @@ interface IPreferencesProps {
   readonly showDiffCheckMarks: boolean
   readonly selectedCopilotModels: CopilotModelSelections
   readonly copilotModels: ReadonlyArray<Model> | null
-  readonly copilotAvailable: boolean
   readonly byokProviders: ReadonlyArray<IBYOKProvider>
 }
 
@@ -450,6 +449,22 @@ export class Preferences extends React.Component<
     this.props.dispatcher.showEnterpriseSignInDialog()
   }
 
+  private onCopilotSignIn = () => {
+    this.setState({ selectedIndex: PreferencesTab.Accounts })
+  }
+
+  private onOpenCopilotPlans = () => {
+    this.props.dispatcher.openInBrowser(
+      'https://github.com/features/copilot/plans'
+    )
+  }
+
+  private onOpenCopilotFeatureSettings = () => {
+    this.props.dispatcher.openInBrowser(
+      'https://github.com/settings/copilot/features'
+    )
+  }
+
   private onLogout = (account: Account) => {
     this.props.dispatcher.removeAccount(account)
   }
@@ -522,9 +537,12 @@ export class Preferences extends React.Component<
           <CopilotPreferences
             selectedCopilotModels={this.state.selectedCopilotModels}
             copilotModels={this.props.copilotModels}
-            copilotAvailable={this.props.copilotAvailable}
+            accounts={this.props.accounts}
             byokProviders={this.props.byokProviders}
             showBYOKSettings={this.shouldShowBYOKSettings()}
+            onSignIn={this.onCopilotSignIn}
+            onOpenCopilotPlans={this.onOpenCopilotPlans}
+            onOpenCopilotFeatureSettings={this.onOpenCopilotFeatureSettings}
             onSelectedCopilotModelChanged={this.onSelectedCopilotModelChanged}
             onAddBYOKProvider={this.onAddBYOKProvider}
             onEditBYOKProvider={this.onEditBYOKProvider}
@@ -873,8 +891,7 @@ export class Preferences extends React.Component<
   }
 
   private shouldShowBYOKSettings(): boolean {
-    const account = this.props.accounts.find(isDotComAccount)
-    return account ? enableCopilotSdkCommitMessageGeneration(account) : false
+    return this.props.accounts.some(enableCopilotSdkCommitMessageGeneration)
   }
 
   private onAddBYOKProvider = () => {
@@ -1093,9 +1110,7 @@ export class Preferences extends React.Component<
   }
 
   private get isCopilotSdkEnabled(): boolean {
-    return this.props.accounts
-      .filter(isDotComAccount)
-      .some(enableCopilotSdkCommitMessageGeneration)
+    return this.props.accounts.some(enableCopilotSdkCommitMessageGeneration)
   }
 
   private tabToVisualIndex(tab: PreferencesTab): number {
