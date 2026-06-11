@@ -996,6 +996,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
     this.accountsStore.onDidUpdate(accounts => {
       this.accounts = accounts
       this.syncCopilotModelsFromCache()
+      this.fetchUncachedCopilotModelsForCurrentAccount()
       const endpointTokens = accounts.map<EndpointToken>(
         ({ endpoint, token }) => ({ endpoint, token })
       )
@@ -1057,6 +1058,24 @@ export class AppStore extends TypedBaseStore<IAppState> {
     }
 
     this.copilotModels = this.copilotStore.getCachedModelList(account)
+  }
+
+  private fetchUncachedCopilotModelsForCurrentAccount(): void {
+    const account = this.getCopilotModelsAccount()
+
+    if (
+      account === undefined ||
+      this.copilotStore.getCachedModelList(account) !== null
+    ) {
+      return
+    }
+
+    this.fetchCopilotModelsForCurrentAccount().catch(e => {
+      log.warn(
+        'AppStore: Failed to fetch Copilot models after account update',
+        e
+      )
+    })
   }
 
   /** Load the emoji from disk. */
@@ -9962,6 +9981,10 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
   /** This shouldn't be called directly. See 'Dispatcher'. */
   public async _fetchCopilotModels(): Promise<void> {
+    return this.fetchCopilotModelsForCurrentAccount()
+  }
+
+  private async fetchCopilotModelsForCurrentAccount(): Promise<void> {
     const account = this.getCopilotModelsAccount()
     if (account === undefined) {
       this.copilotModels = null
