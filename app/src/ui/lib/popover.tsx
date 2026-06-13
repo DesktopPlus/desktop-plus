@@ -18,6 +18,7 @@ import {
 } from '@floating-ui/core'
 import { assertNever } from '../../lib/fatal-error'
 import { isMacOSSequoia, isMacOSSonoma, isMacOSVentura } from '../../lib/get-os'
+import { createObservableRef } from './observable-ref'
 
 /**
  * Position of the popover relative to its anchor element. It's composed by 2
@@ -84,6 +85,18 @@ interface IPopoverProps {
   readonly maxHeight?: number
   /** Minimum height decided by clients of Popover */
   readonly minHeight?: number
+
+  /**
+   * The `ref` for the underlying container <div> element.
+   *
+   * Ideally this would be named `ref`, but TypeScript seems to special-case its
+   * handling of the `ref` type into some ungodly monstrosity. Hopefully someday
+   * this will be unnecessary.
+   */
+  readonly onContainerRef?: (instance: HTMLDivElement | null) => void
+
+  readonly onComponentDidMount?: () => void
+  readonly onComponentWillUnmount?: () => void
 }
 
 interface IPopoverState {
@@ -92,13 +105,14 @@ interface IPopoverState {
 
 export class Popover extends React.Component<IPopoverProps, IPopoverState> {
   private focusTrapOptions: FocusTrapOptions
-  private containerDivRef = React.createRef<HTMLDivElement>()
+  private containerDivRef = createObservableRef<HTMLDivElement>()
   private contentDivRef = React.createRef<HTMLDivElement>()
   private tipDivRef = React.createRef<HTMLDivElement>()
   private floatingCleanUp: (() => void) | null = null
 
   public constructor(props: IPopoverProps) {
     super(props)
+    this.containerDivRef.subscribe(div => this.props.onContainerRef?.(div))
 
     this.focusTrapOptions = {
       allowOutsideClick: true,
@@ -195,6 +209,7 @@ export class Popover extends React.Component<IPopoverProps, IPopoverState> {
     document.addEventListener('click', this.onDocumentClick)
     document.addEventListener('mousedown', this.onDocumentMouseDown)
     this.setupPosition()
+    this.props.onComponentDidMount?.()
   }
 
   public componentDidUpdate(prevProps: IPopoverProps) {
@@ -206,6 +221,7 @@ export class Popover extends React.Component<IPopoverProps, IPopoverState> {
   public componentWillUnmount() {
     document.removeEventListener('click', this.onDocumentClick)
     document.removeEventListener('mousedown', this.onDocumentMouseDown)
+    this.props.onComponentWillUnmount?.()
   }
 
   private onDocumentClick = (event: MouseEvent) => {
