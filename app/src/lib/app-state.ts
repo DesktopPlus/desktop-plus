@@ -1007,6 +1007,9 @@ export interface ICompareState {
   readonly tip: string | null
 
   /** The SHAs of commits to render in the compare list */
+  readonly prevFilteredHistoryCommitSHAs: ReadonlyArray<string>
+
+  /** The SHAs of commits to render in the compare list */
   readonly filteredHistoryCommitSHAs: ReadonlyArray<string>
 
   readonly allHistoryCommitSHAs: ReadonlyArray<string>
