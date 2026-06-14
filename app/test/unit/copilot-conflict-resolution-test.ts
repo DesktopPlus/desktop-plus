@@ -5,8 +5,15 @@ import {
   parseCopilotConflictResolution,
   extractSymbols,
   createDependencyAwareChunks,
+  selectReferencedContext,
+  fallbackReferencedContext,
 } from '../../src/lib/copilot-conflict-resolution'
-import { IFileConflictContext } from '../../src/lib/copilot-conflict-context'
+import {
+  IFileConflictContext,
+  IConflictResolutionContext,
+  IConflictContextCommit,
+  IConflictContextPullRequest,
+} from '../../src/lib/copilot-conflict-context'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -307,6 +314,60 @@ describe('parseCopilotConflictResolution', () => {
     })
     const result = parseCopilotConflictResolution(json)
     assert.equal(result.resolutions[0].path, 'src/lib/file.ts')
+  })
+
+  it('returns null summary when missing, mistyped, or blank', () => {
+    const base = [{ path: 'a.ts', resolvedContent: 'c', reasoning: 'r' }]
+    for (const summary of [undefined, 42, '   ']) {
+      const json = JSON.stringify({ resolutions: base, summary })
+      assert.equal(parseCopilotConflictResolution(json).summary, null)
+    }
+  })
+
+  it('preserves a non-empty summary string', () => {
+    const summary = '## What changed\nA.\n\n## Resolution decision\nB.'
+    const json = JSON.stringify({
+      resolutions: [{ path: 'a.ts', resolvedContent: 'c', reasoning: 'r' }],
+      summary,
+    })
+    const result = parseCopilotConflictResolution(json)
+    assert.equal(result.summary, summary)
+  })
+
+  it('parses valid references and strips a leading # from PR ids', () => {
+    const json = JSON.stringify({
+      resolutions: [{ path: 'a.ts', resolvedContent: 'c', reasoning: 'r' }],
+      references: [
+        { type: 'pullRequest', id: '#42' },
+        { type: 'commit', id: 'abc1234' },
+      ],
+    })
+    const result = parseCopilotConflictResolution(json)
+    assert.deepEqual(result.references, [
+      { type: 'pullRequest', id: '42' },
+      { type: 'commit', id: 'abc1234' },
+    ])
+  })
+
+  it('returns empty references when missing and drops invalid entries', () => {
+    const missing = JSON.stringify({
+      resolutions: [{ path: 'a.ts', resolvedContent: 'c', reasoning: 'r' }],
+    })
+    assert.deepEqual(parseCopilotConflictResolution(missing).references, [])
+
+    const json = JSON.stringify({
+      resolutions: [{ path: 'a.ts', resolvedContent: 'c', reasoning: 'r' }],
+      references: [
+        { type: 'wrong', id: '1' },
+        { type: 'pullRequest', id: 'abc' },
+        { type: 'commit', id: 'xyz' },
+        { type: 'commit', id: 'cafe1234' },
+        'string',
+        null,
+      ],
+    })
+    const result = parseCopilotConflictResolution(json)
+    assert.deepEqual(result.references, [{ type: 'commit', id: 'cafe1234' }])
   })
 })
 
@@ -649,5 +710,181 @@ describe('createDependencyAwareChunks', () => {
         `chunk has ${chunk.length} files, expected <= 3`
       )
     }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// selectReferencedContext
+// ---------------------------------------------------------------------------
+
+function makeResolutionContext(
+  overrides: Partial<IConflictResolutionContext> = {}
+): IConflictResolutionContext {
+  return {
+    ourLabel: 'main',
+    theirLabel: 'feature',
+    files: [],
+    pullRequests: [],
+    ourCommits: [],
+    theirCommits: [],
+    ...overrides,
+  }
+}
+
+function ctxCommit(
+  sha: string,
+  summary: string,
+  isOnRemote: boolean = true
+): IConflictContextCommit {
+  return {
+    sha: sha.toLowerCase().padEnd(40, '0'),
+    shortSha: sha.slice(0, 7),
+    summary,
+    isOnRemote,
+  }
+}
+
+function ctxPr(prNumber: number, title: string): IConflictContextPullRequest {
+  return {
+    number: prNumber,
+    title,
+    body: '',
+  }
+}
+
+describe('selectReferencedContext', () => {
+  it('resolves pull request references against the gathered context', () => {
+    const context = makeResolutionContext({
+      pullRequests: [ctxPr(20, 'Add greetings')],
+    })
+
+    const selected = selectReferencedContext(
+      [{ type: 'pullRequest', id: '20' }],
+      context
+    )
+
+    assert.equal(selected.length, 1)
+    assert.equal(selected[0].kind, 'pullRequest')
+    if (selected[0].kind === 'pullRequest') {
+      assert.equal(selected[0].pullRequest.number, 20)
+    }
+  })
+
+  it('resolves commit references by full and abbreviated SHA', () => {
+    const commit = ctxCommit('abc1234def', 'Fix bug')
+    const context = makeResolutionContext({ theirCommits: [commit] })
+
+    const byShort = selectReferencedContext(
+      [{ type: 'commit', id: 'abc1234' }],
+      context
+    )
+    assert.equal(byShort.length, 1)
+    assert.equal(byShort[0].kind, 'commit')
+
+    const byFull = selectReferencedContext(
+      [{ type: 'commit', id: commit.sha }],
+      context
+    )
+    assert.equal(byFull.length, 1)
+  })
+
+  it('refuses to resolve short or ambiguous commit prefixes', () => {
+    const context = makeResolutionContext({
+      theirCommits: [
+        ctxCommit('abc1234aaa', 'First'),
+        ctxCommit('abc1234bbb', 'Second'),
+      ],
+    })
+
+    // Too short to prefix-match
+    assert.equal(
+      selectReferencedContext([{ type: 'commit', id: 'abc' }], context).length,
+      0
+    )
+    // 7-char prefix shared by two commits is ambiguous -> dropped
+    assert.equal(
+      selectReferencedContext([{ type: 'commit', id: 'abc1234' }], context)
+        .length,
+      0
+    )
+  })
+
+  it('promotes a merge commit to its pull request, de-duplicating direct citations', () => {
+    const context = makeResolutionContext({
+      pullRequests: [ctxPr(20, 'Add greetings')],
+      theirCommits: [ctxCommit('mergesha123', 'Add greetings (#20)')],
+    })
+
+    // Citing the merge commit alone resolves to the promoted PR...
+    const promoted = selectReferencedContext(
+      [{ type: 'commit', id: 'mergesha123' }],
+      context
+    )
+    assert.equal(promoted.length, 1)
+    assert.equal(promoted[0].kind, 'pullRequest')
+    if (promoted[0].kind === 'pullRequest') {
+      assert.equal(promoted[0].pullRequest.number, 20)
+    }
+
+    // ...and citing both the PR and its merge commit yields a single entry.
+    const deduped = selectReferencedContext(
+      [
+        { type: 'pullRequest', id: '20' },
+        { type: 'commit', id: 'mergesha123' },
+      ],
+      context
+    )
+    assert.equal(deduped.length, 1)
+    assert.equal(deduped[0].kind, 'pullRequest')
+  })
+
+  it('keeps a merge commit as a commit when its PR was not gathered', () => {
+    const context = makeResolutionContext({
+      theirCommits: [ctxCommit('mergesha123', 'Add greetings (#20)')],
+    })
+
+    const selected = selectReferencedContext(
+      [{ type: 'commit', id: 'mergesha123' }],
+      context
+    )
+
+    assert.equal(selected.length, 1)
+    assert.equal(selected[0].kind, 'commit')
+  })
+})
+
+describe('fallbackReferencedContext', () => {
+  it('prefers the incoming pull request over commits', () => {
+    const context = makeResolutionContext({
+      pullRequests: [ctxPr(20, 'Add greetings')],
+      theirCommits: [ctxCommit('abc1234', 'Add greetings')],
+    })
+
+    const fallback = fallbackReferencedContext(context)
+
+    assert.equal(fallback.length, 1)
+    assert.equal(fallback[0].kind, 'pullRequest')
+  })
+
+  it('falls back to a meaningful commit, skipping noise', () => {
+    const context = makeResolutionContext({
+      theirCommits: [
+        ctxCommit('mergesha', 'Merge branch main'),
+        ctxCommit('abc1234', 'Add time-of-day greetings'),
+      ],
+    })
+
+    const fallback = fallbackReferencedContext(context)
+
+    assert.equal(fallback.length, 1)
+    assert.equal(fallback[0].kind, 'commit')
+    assert.equal(
+      fallback[0].kind === 'commit' && fallback[0].commit.summary,
+      'Add time-of-day greetings'
+    )
+  })
+
+  it('returns empty when there are no commits or pull requests', () => {
+    assert.equal(fallbackReferencedContext(makeResolutionContext()).length, 0)
   })
 })

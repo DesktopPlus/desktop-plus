@@ -7,6 +7,7 @@ import { OkCancelButtonGroup } from '../dialog/ok-cancel-button-group'
 import { Repository } from '../../models/repository'
 import { getUnderlyingError, isRawGitError } from '../app-error'
 import { Terminal } from '../terminal'
+import { WorktreeEntry } from '../../models/worktree'
 
 interface IDeleteWorktreeFailedDialogProps {
   readonly repository: Repository
@@ -16,7 +17,12 @@ interface IDeleteWorktreeFailedDialogProps {
     worktreePath: string,
     force: boolean
   ) => Promise<void>
+  readonly onSwitchToWorktree: (
+    repository: Repository,
+    worktree: WorktreeEntry
+  ) => Promise<void>
   readonly error: Error
+  readonly originalWorktree: WorktreeEntry | null
   readonly onDismissed: () => void
 }
 
@@ -45,20 +51,23 @@ export class DeleteWorktreeFailedDialog extends React.Component<
         title={__DARWIN__ ? 'Delete Worktree Failed' : 'Delete worktree failed'}
         type="error"
         onSubmit={this.onSubmit}
-        onDismissed={this.props.onDismissed}
+        onDismissed={this.onDismissed}
         disabled={this.state.isDeleting}
         loading={this.state.isDeleting}
         role="alertdialog"
-        ariaDescribedBy="delete-worktree-failed-confirmation"
+        ariaDescribedBy="delete-worktree-failed-message"
       >
         <DialogContent>
-          <p>
-            Deleting the worktree <Ref>{name}</Ref> failed.
-          </p>
-          {this.renderErrorMessage()}
-          <p id="delete-worktree-failed-confirmation">
-            Would you like to forcefully delete the worktree <Ref>{name}</Ref>?
-          </p>
+          <div id="delete-worktree-failed-message">
+            <p>
+              Deleting the worktree <Ref>{name}</Ref> failed.
+            </p>
+            {this.renderErrorMessage()}
+            <p>
+              Would you like to forcefully delete the worktree <Ref>{name}</Ref>
+              ?
+            </p>
+          </div>
         </DialogContent>
         <DialogFooter>
           <OkCancelButtonGroup
@@ -78,6 +87,16 @@ export class DeleteWorktreeFailedDialog extends React.Component<
     }
 
     return <p>{e.toString()}</p>
+  }
+
+  private onDismissed = () => {
+    const { originalWorktree, repository } = this.props
+
+    if (originalWorktree !== null) {
+      this.props.onSwitchToWorktree(repository, originalWorktree)
+    }
+
+    this.props.onDismissed()
   }
 
   private onSubmit = async () => {

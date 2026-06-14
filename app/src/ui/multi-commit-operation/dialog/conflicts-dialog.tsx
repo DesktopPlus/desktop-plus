@@ -22,6 +22,8 @@ import { ManualConflictResolution } from '../../../models/manual-conflict-resolu
 import { OkCancelButtonGroup } from '../../dialog/ok-cancel-button-group'
 import { DialogSuccess } from '../../dialog/success'
 import { enableCopilotConflictResolution } from '../../../lib/feature-flag'
+import { getAccountForCopilotConflictResolution } from '../../../lib/get-account-for-repository'
+import { Account } from '../../../models/account'
 import { Octicon } from '../../octicons'
 import * as octicons from '../../octicons/octicons.generated'
 import { Button } from '../../lib/button'
@@ -51,6 +53,18 @@ interface IConflictsDialogProps {
    * button is shown in the dialog footer.
    */
   readonly onResolveWithCopilot?: () => void
+  /**
+   * Authenticated GitHub accounts. Used to determine whether the
+   * "Resolve with Copilot" button should be shown — the button is only
+   * available when at least one account has Copilot for Desktop enabled.
+   */
+  readonly accounts: ReadonlyArray<Account>
+  /**
+   * Whether to show the "New" call-to-action bubble on the
+   * "Resolve with Copilot" button. Hidden once the user has clicked it
+   * for the first time.
+   */
+  readonly shouldShowCopilotConflictResolutionCallOut: boolean
 }
 
 interface IConflictsDialogState {
@@ -247,22 +261,25 @@ export class ConflictsDialog extends React.Component<
    * Only shown when:
    * - The onResolveWithCopilot callback is provided (operation supports it)
    * - The feature flag is enabled
+   * - There is at least one signed-in account with Copilot for Desktop
+   *   enabled (covers "no Copilot subscription" and "disabled by org policy")
    * - There are still conflicted files to resolve
    */
   private renderCopilotButton(
     conflictedFilesCount: number
   ): JSX.Element | null {
-    const { onResolveWithCopilot } = this.props
+    const { onResolveWithCopilot, accounts, repository } = this.props
 
     if (
       onResolveWithCopilot === undefined ||
       !enableCopilotConflictResolution() ||
-      conflictedFilesCount === 0
+      conflictedFilesCount === 0 ||
+      getAccountForCopilotConflictResolution(accounts, repository) === undefined
     ) {
       return null
     }
 
-    return (
+    const button = (
       <Button
         className="copilot-resolve-button"
         onClick={onResolveWithCopilot}
@@ -276,6 +293,17 @@ export class ConflictsDialog extends React.Component<
         <Octicon symbol={octicons.copilot} />
         {' Resolve with Copilot'}
       </Button>
+    )
+
+    if (!this.props.shouldShowCopilotConflictResolutionCallOut) {
+      return button
+    }
+
+    return (
+      <div className="copilot-resolve-button-with-call-out">
+        <span className="call-to-action-bubble">New</span>
+        {button}
+      </div>
     )
   }
 

@@ -20,6 +20,7 @@ import {
   isLocalBaseUrl,
   parseModelKey,
 } from '../../lib/copilot/byok'
+import { enableCopilotConflictResolution } from '../../lib/feature-flag'
 
 interface ICopilotPreferencesProps {
   readonly selectedCopilotModels: CopilotModelSelections
@@ -58,6 +59,15 @@ export class CopilotPreferences extends React.Component<
   ) => {
     this.props.onSelectedCopilotModelChanged(
       'commit-message-generation',
+      event.currentTarget.value
+    )
+  }
+
+  private onConflictResolutionModelChanged = (
+    event: React.FormEvent<HTMLSelectElement>
+  ) => {
+    this.props.onSelectedCopilotModelChanged(
+      'conflict-resolution',
       event.currentTarget.value
     )
   }
@@ -116,27 +126,13 @@ export class CopilotPreferences extends React.Component<
       )
     }
 
-    const { copilotModels, byokProviders, selectedCopilotModels } = this.props
+    const { copilotModels, byokProviders } = this.props
 
     if (copilotModels === null) {
       return <p>Loading available models…</p>
     }
 
     if (copilotModels.length === 0 && byokProviders.length === 0) {
-      return <p>No models available. Check your Copilot subscription.</p>
-    }
-
-    const rawSelection =
-      selectedCopilotModels['commit-message-generation'] ?? null
-    const value = this.resolveSelectionValue(
-      copilotModels,
-      byokProviders,
-      rawSelection
-    )
-
-    if (value === null) {
-      // This should not happen at this point because if there are no models then
-      // we return early.
       return <p>No models available. Check your Copilot subscription.</p>
     }
 
@@ -151,55 +147,77 @@ export class CopilotPreferences extends React.Component<
             .
           </p>
         </Row>
-        <Select
-          label={
-            __DARWIN__
-              ? 'Commit Message Generation'
-              : 'Commit message generation'
-          }
-          value={value}
-          onChange={this.onCommitMessageModelChanged}
-        >
-          <option value={DisabledCopilotModel}>
-            None (hide Copilot button)
-          </option>
-          {copilotModels.length > 0 && (
-            <optgroup label="GitHub Copilot">
-              {copilotModels.map(m => (
-                <option
-                  key={m.id}
-                  value={encodeModelKey({ kind: 'copilot', modelId: m.id })}
-                >
-                  {m.id === DefaultCopilotModel
-                    ? `${m.name} (default)`
-                    : m.name}
-                </option>
-              ))}
-            </optgroup>
-          )}
-          {byokProviders.map(p => (
-            <optgroup key={p.id} label={p.name}>
-              {p.models.map(m => (
-                <option
-                  key={m.id}
-                  value={encodeModelKey({
-                    kind: 'byok',
-                    providerId: p.id,
-                    modelId: m.id,
-                  })}
-                >
-                  {m.name}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </Select>
+        {this.renderFeatureModelPicker(
+          copilotModels,
+          'commit-message-generation',
+          __DARWIN__
+            ? 'Commit Message Generation'
+            : 'Commit message generation',
+          this.onCommitMessageModelChanged
+        )}
         <p className="settings-description">
           <LinkButton uri="https://docs.github.com/en/desktop/making-changes-in-a-branch/committing-and-reviewing-changes-to-your-project-in-github-desktop#write-a-commit-message-and-push-your-changes">
             Learn more about generating commit messages.
           </LinkButton>
         </p>
+        {enableCopilotConflictResolution() &&
+          this.renderFeatureModelPicker(
+            copilotModels,
+            'conflict-resolution',
+            __DARWIN__ ? 'Conflict Resolution' : 'Conflict resolution',
+            this.onConflictResolutionModelChanged
+          )}
       </>
+    )
+  }
+
+  private renderFeatureModelPicker(
+    copilotModels: ReadonlyArray<ModelInfo>,
+    feature: CopilotFeature,
+    label: string,
+    onChange: (event: React.FormEvent<HTMLSelectElement>) => void
+  ): JSX.Element {
+    const { byokProviders, selectedCopilotModels } = this.props
+
+    const rawSelection = selectedCopilotModels[feature] ?? null
+    const value = this.resolveSelectionValue(
+      copilotModels,
+      byokProviders,
+      rawSelection
+    )
+
+    return (
+      <Select label={label} value={value} onChange={onChange}>
+        <option value={DisabledCopilotModel}>None (hide Copilot button)</option>
+        {copilotModels.length > 0 && (
+          <optgroup label="GitHub Copilot">
+            {copilotModels.map(m => (
+              <option
+                key={m.id}
+                value={encodeModelKey({ kind: 'copilot', modelId: m.id })}
+              >
+                {m.id === DefaultCopilotModel ? `${m.name} (default)` : m.name}
+              </option>
+            ))}
+          </optgroup>
+        )}
+        {byokProviders.map(p => (
+          <optgroup key={p.id} label={p.name}>
+            {p.models.map(m => (
+              <option
+                key={m.id}
+                value={encodeModelKey({
+                  kind: 'byok',
+                  providerId: p.id,
+                  modelId: m.id,
+                })}
+              >
+                {m.name}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </Select>
     )
   }
 

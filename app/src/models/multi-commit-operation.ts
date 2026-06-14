@@ -154,6 +154,16 @@ export type HideConflictsStep = {
 export type ConfirmAbortStep = {
   readonly kind: MultiCommitOperationStepKind.ConfirmAbort
   readonly conflictState: MultiCommitOperationConflictState
+  /**
+   * The step the user was on when they invoked the abort confirmation.
+   * Used to route them back to the right place if they choose to
+   * return rather than abort. Defaults to ShowConflicts if omitted
+   * (the historical behavior).
+   */
+  readonly returnToStepKind?:
+    | MultiCommitOperationStepKind.ShowConflicts
+    | MultiCommitOperationStepKind.ShowCopilotConflicts
+    | MultiCommitOperationStepKind.ShowCopilotConflictsLoading
 }
 
 export type CreateBranchStep = {

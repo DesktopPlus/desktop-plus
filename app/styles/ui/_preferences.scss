@@ -151,6 +151,10 @@
     color: var(--text-secondary-color);
   }
 
+  .example-link {
+    cursor: default !important;
+  }
+
   .theme-selector {
     display: flex;
     margin: 0 calc(var(--spacing-half) * -1);

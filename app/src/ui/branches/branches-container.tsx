@@ -36,6 +36,7 @@ import { DragType, DropTargetType } from '../../models/drag-drop'
 import {
   enablePullRequestQuickView,
   enableResizingToolbarButtons,
+  enableWorktreeSupport,
 } from '../../lib/feature-flag'
 import { PullRequestQuickView } from '../pull-request-quick-view'
 import { Emoji } from '../../lib/emoji'
@@ -298,7 +299,11 @@ export class BranchesContainer extends React.Component<
             onSetAsDefaultBranch={this.props.onSetAsDefaultBranch}
             onDeleteBranch={this.props.onDeleteBranch}
             onPullSingleBranch={this.props.onPullSingleBranch}
-            onCheckoutInNewWorktree={this.props.onCheckoutInNewWorktree}
+            onCheckoutInNewWorktree={
+              enableWorktreeSupport()
+                ? this.props.onCheckoutInNewWorktree
+                : undefined
+            }
           />
         )
       case BranchesTab.PullRequests: {
@@ -392,7 +397,11 @@ export class BranchesContainer extends React.Component<
         isLoadingPullRequests={this.props.isLoadingPullRequests}
         onMouseEnterPullRequest={this.onMouseEnterPullRequestListItem}
         onMouseLeavePullRequest={this.onMouseLeavePullRequestListItem}
-        onCheckoutInNewWorktree={this.props.onCheckoutPRInNewWorktree}
+        onCheckoutInNewWorktree={
+          enableWorktreeSupport()
+            ? this.props.onCheckoutPRInNewWorktree
+            : undefined
+        }
       />
     )
   }

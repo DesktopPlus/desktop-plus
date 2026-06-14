@@ -73,11 +73,7 @@ export class WorktreeDropdown extends React.Component<
 
   private onRemoveWorktree = (path: string) => {
     this.props.dispatcher.closeFoldout(FoldoutType.Worktree)
-    this.props.dispatcher.showPopup({
-      type: PopupType.DeleteWorktree,
-      repository: this.props.repository,
-      worktreePath: path,
-    })
+    this.props.dispatcher.requestDeleteWorktree(this.props.repository, path)
   }
 
   private onCreateNewWorktree = () => {

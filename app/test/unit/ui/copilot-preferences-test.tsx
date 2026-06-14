@@ -381,4 +381,77 @@ describe('CopilotPreferences', () => {
     fireEvent.click(addButton!)
     assert.strictEqual(called, 1)
   })
+
+  describe('conflict resolution model picker', () => {
+    const previousPreviewFeatures = process.env.GITHUB_DESKTOP_PREVIEW_FEATURES
+
+    function withConflictResolutionEnabled(enabled: boolean, fn: () => void) {
+      if (enabled) {
+        process.env.GITHUB_DESKTOP_PREVIEW_FEATURES = '1'
+      } else {
+        delete process.env.GITHUB_DESKTOP_PREVIEW_FEATURES
+      }
+      try {
+        fn()
+      } finally {
+        if (previousPreviewFeatures === undefined) {
+          delete process.env.GITHUB_DESKTOP_PREVIEW_FEATURES
+        } else {
+          process.env.GITHUB_DESKTOP_PREVIEW_FEATURES = previousPreviewFeatures
+        }
+      }
+    }
+
+    it('is hidden when the feature flag is disabled', () => {
+      withConflictResolutionEnabled(false, () => {
+        const view = render(<CopilotPreferences {...defaults()} />)
+        const selects = view.container.querySelectorAll('select')
+        assert.strictEqual(selects.length, 1)
+      })
+    })
+
+    it('renders a second picker when the feature flag is enabled', () => {
+      withConflictResolutionEnabled(true, () => {
+        const view = render(<CopilotPreferences {...defaults()} />)
+        const selects = view.container.querySelectorAll('select')
+        assert.strictEqual(selects.length, 2)
+      })
+    })
+
+    it('emits the conflict-resolution feature on change', () => {
+      withConflictResolutionEnabled(true, () => {
+        const changed: Array<{
+          feature: CopilotFeature
+          model: string | null
+        }> = []
+        const view = render(
+          <CopilotPreferences
+            {...defaults()}
+            onSelectedCopilotModelChanged={(f, m) =>
+              changed.push({ feature: f, model: m })
+            }
+          />
+        )
+        const selects = view.container.querySelectorAll('select')
+        const conflictSelect = selects[1] as HTMLSelectElement
+        fireEvent.change(conflictSelect, {
+          target: {
+            value: encodeModelKey({
+              kind: 'copilot',
+              modelId: 'claude-sonnet',
+            }),
+          },
+        })
+        assert.deepStrictEqual(changed, [
+          {
+            feature: 'conflict-resolution',
+            model: encodeModelKey({
+              kind: 'copilot',
+              modelId: 'claude-sonnet',
+            }),
+          },
+        ])
+      })
+    })
+  })
 })

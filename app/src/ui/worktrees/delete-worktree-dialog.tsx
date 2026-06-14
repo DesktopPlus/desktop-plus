@@ -5,19 +5,23 @@ import { Dialog, DialogContent, DialogFooter } from '../dialog'
 import { Ref } from '../lib/ref'
 import { OkCancelButtonGroup } from '../dialog/ok-cancel-button-group'
 import { Repository } from '../../models/repository'
+import { Checkbox, CheckboxValue } from '../lib/checkbox'
 
 interface IDeleteWorktreeDialogProps {
   readonly repository: Repository
   readonly worktreePath: string
+  readonly askForConfirmationOnWorktreeRemoval: boolean
   readonly onDeleteWorktree: (
     repository: Repository,
     worktreePath: string
   ) => Promise<void>
+  readonly onConfirmWorktreeRemovalChanged: (value: boolean) => void
   readonly onDismissed: () => void
 }
 
 interface IDeleteWorktreeDialogState {
   readonly isDeleting: boolean
+  readonly confirmWorktreeRemoval: boolean
 }
 
 export class DeleteWorktreeDialog extends React.Component<
@@ -29,6 +33,7 @@ export class DeleteWorktreeDialog extends React.Component<
 
     this.state = {
       isDeleting: false,
+      confirmWorktreeRemoval: props.askForConfirmationOnWorktreeRemoval,
     }
   }
 
@@ -51,6 +56,15 @@ export class DeleteWorktreeDialog extends React.Component<
           <p id="delete-worktree-confirmation">
             Are you sure you want to delete the worktree <Ref>{name}</Ref>?
           </p>
+          <Checkbox
+            label="Do not show this message again"
+            value={
+              this.state.confirmWorktreeRemoval
+                ? CheckboxValue.Off
+                : CheckboxValue.On
+            }
+            onChange={this.onConfirmWorktreeRemovalChanged}
+          />
         </DialogContent>
         <DialogFooter>
           <OkCancelButtonGroup destructive={true} okButtonText="Delete" />
@@ -59,8 +73,20 @@ export class DeleteWorktreeDialog extends React.Component<
     )
   }
 
+  private onConfirmWorktreeRemovalChanged = (
+    event: React.FormEvent<HTMLInputElement>
+  ) => {
+    const value = !event.currentTarget.checked
+    this.setState({ confirmWorktreeRemoval: value })
+  }
+
   private onSubmit = async () => {
     this.setState({ isDeleting: true })
+
+    this.props.onConfirmWorktreeRemovalChanged(
+      this.state.confirmWorktreeRemoval
+    )
+
     await this.props.onDeleteWorktree(
       this.props.repository,
       this.props.worktreePath

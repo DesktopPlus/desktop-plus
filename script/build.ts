@@ -409,12 +409,18 @@ function copyDependencies() {
       path.join(copilotDestination, 'clipboard', 'node_modules', '@teddyzhu'),
       path.join(
         copilotDestination,
+        'clipboard',
+        'node_modules',
+        '@teddyzhu',
+        'clipboard'
+      ),
+      path.join(
+        copilotDestination,
         'foundry-local-sdk',
         'node_modules',
         'foundry-local-sdk',
         'prebuilds'
       ),
-      path.join(copilotDestination, 'koffi', 'build', 'koffi'),
       path.join(
         copilotDestination,
         'pvrecorder',
@@ -439,6 +445,47 @@ function copyDependencies() {
             force: true,
           })
         }
+      }
+    }
+
+    // mxc cleanup
+    const mxcDir = path.join(copilotDestination, 'mxc-bin')
+    // Read subdirs, delete the one that has a name that is not a valid architecture
+    const mxcSubdirs = readdirSync(mxcDir)
+    for (const subdir of mxcSubdirs) {
+      if (nonValidArchitectures.some(a => subdir.includes(a))) {
+        rmSync(path.join(mxcDir, subdir), {
+          recursive: true,
+          force: true,
+        })
+      }
+    }
+    // Then, read the subdir with the valid architecture and:
+    // - leave only exe and dll files for Windows platforms
+    // - on macOS, delete exe and dll files and also linux-test-proxy and lxc-exec
+    // - on Linux, delete exe and dll files and also mxc-exec-mac
+    const mxcArchSubdirPath = path.join(mxcDir, currentArch)
+    const mxcFiles = readdirSync(mxcArchSubdirPath)
+    const isWindowsBinary = (file: string) =>
+      file.endsWith('.exe') || file.endsWith('.dll')
+    const isMacOSBinary = (file: string) => file === 'mxc-exec-mac'
+    const isLinuxBinary = (file: string) =>
+      file === 'linux-test-proxy' || file === 'lxc-exec'
+
+    for (const file of mxcFiles) {
+      const shouldRemove =
+        (currentPlatform === 'win32' &&
+          (isMacOSBinary(file) || isLinuxBinary(file))) ||
+        (currentPlatform === 'darwin' &&
+          (isWindowsBinary(file) || isLinuxBinary(file))) ||
+        (currentPlatform === 'linux' &&
+          (isWindowsBinary(file) || isMacOSBinary(file)))
+
+      if (shouldRemove) {
+        rmSync(path.join(mxcArchSubdirPath, file), {
+          recursive: true,
+          force: true,
+        })
       }
     }
   }

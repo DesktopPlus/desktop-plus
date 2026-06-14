@@ -3,7 +3,6 @@ import { extname } from 'path'
 
 import { Repository } from '../models/repository'
 import { Commit } from '../models/commit'
-import { PullRequest } from '../models/pull-request'
 import { getMergeBase } from './git/merge'
 import { getCommits } from './git/log'
 import { resolveWithin } from './path'
@@ -51,6 +50,57 @@ export interface ICopilotConflictContext {
 export interface IConflictCommitContext {
   readonly ourCommits: ReadonlyArray<Commit>
   readonly theirCommits: ReadonlyArray<Commit>
+}
+
+/**
+ * A pull request gathered as conflict context, in display-ready form.
+ *
+ * Captured once while the data is fresh so the same object can be fed to
+ * the prompt *and* rendered in the dialog's "Context" list — no post-hoc
+ * re-hydration required.
+ */
+export interface IConflictContextPullRequest {
+  /** The pull-request number (no leading `#`). */
+  readonly number: number
+  /** The pull-request title. */
+  readonly title: string
+  /** The pull-request body/description (may be empty). */
+  readonly body: string
+}
+
+/**
+ * A commit gathered as conflict context, in display-ready form.
+ */
+export interface IConflictContextCommit {
+  /** Full commit SHA. */
+  readonly sha: string
+  /** Abbreviated commit SHA for display. */
+  readonly shortSha: string
+  /** First line of the commit message. */
+  readonly summary: string
+  /** Whether the commit is reachable from a remote (i.e. pushed). */
+  readonly isOnRemote: boolean
+}
+
+/**
+ * The full, display-ready context gathered for a conflict resolution.
+ *
+ * Extends the file-level {@linkcode ICopilotConflictContext} with the
+ * pull requests and commits from both sides. This single object is the
+ * source of truth for both the Copilot prompt and the dialog's summary
+ * card, so the data is gathered exactly once.
+ */
+export interface IConflictResolutionContext extends ICopilotConflictContext {
+  /**
+   * All pull requests referenced in either side's commit history, resolved
+   * against the local cache and API. The model infers which PRs relate to
+   * which side from the commit context.
+   */
+  readonly pullRequests: ReadonlyArray<IConflictContextPullRequest>
+  /** Recent commits on the *ours* (current) side. */
+  readonly ourCommits: ReadonlyArray<IConflictContextCommit>
+  /** Recent commits on the *theirs* (incoming) side. */
+  readonly theirCommits: ReadonlyArray<IConflictContextCommit>
 }
 
 const oursMarker = /^<{7}(?:\s|$)/
@@ -314,15 +364,15 @@ export async function buildConflictContext(
  * Convert a structured conflict context into a human-readable prompt
  * string suitable for sending to the Copilot SDK as a user message.
  *
- * @param context - The structured conflict context to format
- * @param commitContext - Optional commit history from both sides
- * @param pullRequest - Optional pull request associated with the merge
+ * Reads the pull requests and commits straight off the unified context
+ * so the prompt and the dialog summary are built from the exact same
+ * gathered data.
+ *
+ * @param context - The unified conflict-resolution context to format
  * @returns A formatted string describing the merge conflicts
  */
 export function formatConflictContextForPrompt(
-  context: ICopilotConflictContext,
-  commitContext?: IConflictCommitContext | null,
-  pullRequest?: PullRequest | null
+  context: IConflictResolutionContext
 ): string {
   const parts: Array<string> = []
 
@@ -331,36 +381,32 @@ export function formatConflictContextForPrompt(
   )
   parts.push('')
 
-  if (pullRequest) {
+  if (context.pullRequests.length > 0) {
     parts.push('## Pull Request Context')
-    parts.push(`PR #${pullRequest.pullRequestNumber}: ${pullRequest.title}`)
+    parts.push(
+      'These pull requests were referenced in the commit history and may explain the intent behind either side:'
+    )
     parts.push('')
-    if (pullRequest.body) {
-      parts.push('Description:')
-      parts.push(makeFencedBlock(pullRequest.body))
-      parts.push('')
+    for (const pr of context.pullRequests) {
+      appendPullRequest(parts, pr)
     }
   }
 
-  if (
-    commitContext &&
-    (commitContext.ourCommits.length > 0 ||
-      commitContext.theirCommits.length > 0)
-  ) {
+  if (context.ourCommits.length > 0 || context.theirCommits.length > 0) {
     parts.push('## Recent Commits')
     parts.push('')
 
-    if (commitContext.ourCommits.length > 0) {
+    if (context.ourCommits.length > 0) {
       parts.push(`### Ours (${context.ourLabel}) commits:`)
-      for (const commit of commitContext.ourCommits) {
+      for (const commit of context.ourCommits) {
         parts.push(`- ${commit.shortSha}: ${commit.summary}`)
       }
       parts.push('')
     }
 
-    if (commitContext.theirCommits.length > 0) {
+    if (context.theirCommits.length > 0) {
       parts.push(`### Theirs (${context.theirLabel}) commits:`)
-      for (const commit of commitContext.theirCommits) {
+      for (const commit of context.theirCommits) {
         parts.push(`- ${commit.shortSha}: ${commit.summary}`)
       }
       parts.push('')
@@ -414,6 +460,30 @@ export function formatConflictContextForPrompt(
   }
 
   return parts.join('\n')
+}
+
+/** Maximum number of characters of a PR body to include in the prompt. */
+const MAX_PR_BODY_LENGTH = 4000
+
+/** Append a single pull request's title and (truncated) body to the prompt. */
+function appendPullRequest(
+  parts: Array<string>,
+  pr: IConflictContextPullRequest
+): void {
+  parts.push(`PR #${pr.number}: ${pr.title}`)
+  if (pr.body) {
+    parts.push('Description:')
+    parts.push(makeFencedBlock(truncateBody(pr.body)))
+  }
+  parts.push('')
+}
+
+/** Truncate an over-long PR body so a single PR can't dominate the prompt. */
+function truncateBody(body: string): string {
+  if (body.length <= MAX_PR_BODY_LENGTH) {
+    return body
+  }
+  return `${body.slice(0, MAX_PR_BODY_LENGTH)}\n…(truncated)`
 }
 
 /** Extract a language identifier from a file path for use in code fences. */

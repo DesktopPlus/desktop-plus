@@ -12,6 +12,7 @@ import { AppMenu, MenuItem } from '../models/app-menu'
 import { hasConflictedFiles } from './status'
 import { findContributionTargetDefaultBranch } from './branch'
 import { hasDefaultRemoteUrl } from '../models/repository'
+import { enableWorktreeSupport } from './feature-flag'
 
 export interface IMenuItemState {
   readonly enabled?: boolean
@@ -273,6 +274,11 @@ function getRepositoryMenuBuilder(state: IAppState): MenuStateBuilder {
   if (repositoryActive) {
     for (const id of repositoryScopedIDs) {
       menuStateBuilder.enable(id)
+    }
+
+    if (!enableWorktreeSupport()) {
+      menuStateBuilder.disable('show-worktrees-list')
+      menuStateBuilder.disable('create-worktree')
     }
 
     menuStateBuilder.setEnabled(

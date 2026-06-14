@@ -45,6 +45,7 @@ interface ICopilotConflictsDialogProps {
   readonly openFileInExternalEditor: (path: string) => void
   readonly onContinueAfterConflicts: () => Promise<void>
   readonly onAbort: () => Promise<void>
+  readonly onDismissed: () => void
 }
 
 interface ICopilotConflictsDialogState {
@@ -353,7 +354,7 @@ export class CopilotConflictsDialog extends React.Component<
       <Dialog
         id="copilot-conflicts-dialog"
         dismissDisabled={isContinuing}
-        onDismissed={this.onBackToManual}
+        onDismissed={this.props.onDismissed}
         onSubmit={this.onContinue}
         title={`Resolve conflicts before ${operationKind}`}
         loading={isContinuing}
@@ -363,7 +364,7 @@ export class CopilotConflictsDialog extends React.Component<
         <DialogFooter>
           <div className="copilot-conflicts-footer">
             <Button onClick={this.onBackToManual} disabled={isContinuing}>
-              Back to manual
+              Switch to manual
             </Button>
             <OkCancelButtonGroup
               okButtonText={`Continue ${operation}`}

@@ -16,7 +16,7 @@ import {
   isValidBYOKBaseUrl,
   requiresNewBYOKSecret,
 } from '../../lib/copilot/byok'
-import { ReasoningEffort } from '../../lib/stores/copilot-store'
+import { formatReasoningEffort } from '../../lib/stores/copilot-store'
 import { Dispatcher } from '../dispatcher'
 import { PopupType } from '../../models/popup'
 
@@ -101,19 +101,6 @@ class ModelRow extends React.Component<IModelRowProps> {
 
   private onEdit = () => this.props.onEdit(this.props.index)
   private onRemove = () => this.props.onRemove(this.props.index)
-}
-
-export function formatReasoningEffort(effort: ReasoningEffort): string {
-  switch (effort) {
-    case 'low':
-      return 'Low'
-    case 'medium':
-      return 'Medium'
-    case 'high':
-      return 'High'
-    case 'xhigh':
-      return 'Extra high'
-  }
 }
 
 /**

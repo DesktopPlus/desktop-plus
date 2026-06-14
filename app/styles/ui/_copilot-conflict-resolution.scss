@@ -11,6 +11,18 @@
     align-items: center;
     gap: var(--spacing-half);
   }
+
+  .copilot-resolve-button-with-call-out {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--spacing-half);
+
+    .call-to-action-bubble {
+      font-size: var(--font-size);
+      margin-left: 0;
+    }
+  }
 }
 
 // Copilot conflicts result dialog
