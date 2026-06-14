@@ -54,7 +54,6 @@ import {
   DeleteRemoteBranch,
 } from './delete-branch'
 import { CantDeleteMainBranch } from './delete-branch/cant-delete-main-branch'
-import { CantDeleteWorktreeUncommittedChanges } from './worktrees/cant-delete-worktree-uncommitted-changes-dialog'
 import { CloningRepositoryView } from './cloning-repository'
 import {
   Toolbar,
@@ -3008,14 +3007,6 @@ export class App extends React.Component<IAppProps, IAppState> {
           />
         )
       }
-      case PopupType.CantDeleteWorktreeUncommittedChanges:
-        return (
-          <CantDeleteWorktreeUncommittedChanges
-            key="cant-delete-worktree-uncommitted-changes"
-            worktreePath={popup.worktreePath}
-            onDismissed={onPopupDismissedFn}
-          />
-        )
       case PopupType.DeleteWorktreeFailed: {
         return (
           <DeleteWorktreeFailedDialog

@@ -119,7 +119,6 @@ export enum PopupType {
   CantDeleteCurrentBranch = 'CantDeleteCurrentBranch',
   CantDeleteMainBranch = 'CantDeleteMainBranch',
   CantDeleteCurrentBranchUncommittedChanges = 'CantDeleteCurrentBranchUncommittedChanges',
-  CantDeleteWorktreeUncommittedChanges = 'CantDeleteWorktreeUncommittedChanges',
   EditCopilotBYOKProvider = 'EditCopilotBYOKProvider',
   EditCopilotBYOKModel = 'EditCopilotBYOKModel',
   ConfirmDeleteCopilotBYOKProvider = 'ConfirmDeleteCopilotBYOKProvider',
@@ -554,10 +553,6 @@ export type PopupDetail =
   | {
       type: PopupType.DeleteWorktree
       repository: Repository
-      worktreePath: string
-    }
-  | {
-      type: PopupType.CantDeleteWorktreeUncommittedChanges
       worktreePath: string
     }
   | {
