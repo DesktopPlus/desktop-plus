@@ -7367,6 +7367,9 @@ export class AppStore extends TypedBaseStore<IAppState> {
       this.repositoryStateCache.get(repository).multiCommitOperationState
         ?.copilotResolutionAbortController === abortController
 
+    this.statsStore.increment('initiateResolveConflictsWithCopilotCount')
+    const resolveStartTime = performance.now()
+
     try {
       const result = await this._resolveConflictsWithCopilot(
         repository,
@@ -7490,6 +7493,21 @@ export class AppStore extends TypedBaseStore<IAppState> {
       )
 
       this.emitUpdate()
+
+      // Record resolution timing buckets
+      const elapsedSeconds = (performance.now() - resolveStartTime) / 1000
+      if (elapsedSeconds > 15) {
+        this.statsStore.increment('copilotConflictResolutionOver15sCount')
+      }
+      if (elapsedSeconds > 30) {
+        this.statsStore.increment('copilotConflictResolutionOver30sCount')
+      }
+      if (elapsedSeconds > 60) {
+        this.statsStore.increment('copilotConflictResolutionOver60sCount')
+      }
+      if (elapsedSeconds > 120) {
+        this.statsStore.increment('copilotConflictResolutionOver120sCount')
+      }
     } catch (e) {
       log.warn('AppStore: Copilot conflict resolution flow failed', e)
 
@@ -7497,6 +7515,8 @@ export class AppStore extends TypedBaseStore<IAppState> {
       if (!ownsCurrentRun()) {
         return
       }
+
+      this.statsStore.increment('copilotConflictResolutionErrorCount')
 
       // Surface the error to the user so they understand why they were
       // routed back to manual conflict resolution. Mirrors the pattern
@@ -7538,6 +7558,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
     if (controller !== null) {
       controller.abort()
+      this.statsStore.increment('copilotConflictResolutionStoppedCount')
     }
   }
 
@@ -7567,6 +7588,11 @@ export class AppStore extends TypedBaseStore<IAppState> {
       step.kind === MultiCommitOperationStepKind.ShowCopilotConflicts
         ? step.conflictState.manualResolutions
         : new Map<string, ManualConflictResolution>()
+
+    this.statsStore.increment('copilotConflictResolutionAcceptedCount')
+    if (manualResolutions.size > 0) {
+      this.statsStore.increment('copilotConflictResolutionWithOverridesCount')
+    }
 
     const pathsToStage: string[] = []
 
@@ -10242,6 +10268,10 @@ export class AppStore extends TypedBaseStore<IAppState> {
     step: MultiCommitOperationStep,
     useCopilotConflictResolution: boolean
   ): void {
+    if (!useCopilotConflictResolution) {
+      this.statsStore.increment('copilotConflictResolutionSwitchToManualCount')
+    }
+
     this.repositoryStateCache.updateMultiCommitOperationState(
       repository,
       () => ({
