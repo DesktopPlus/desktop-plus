@@ -375,9 +375,6 @@ async function findWarp(): Promise<string | null> {
     return warpInstallationPath.data
   }
 
-  log.debug(
-    `[Warp] no new installation path found, checking old warp installation checker process. User should update Warp.`
-  )
 
   return await findOldWarp(warpRegistry)
 }
