@@ -1029,7 +1029,9 @@ export class CommitMessage extends React.Component<
           />
           <Octicon
             symbol={
-              isGeneratingCommitMessage ? octicons.x : octicons.copilot
+              isGeneratingCommitMessage
+                ? octicons.squareCircle
+                : octicons.copilot
             }
           />
           {shouldShowGenerateCommitMessageCallOut && (
