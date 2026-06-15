@@ -2,6 +2,7 @@ import * as Path from 'path'
 
 import { GitHubRepository, ForkedGitHubRepository } from './github-repository'
 import { IAheadBehind } from './branch'
+import { WorktreeEntry } from './worktree'
 import {
   WorkflowPreferences,
   ForkContributionTarget,
@@ -214,6 +215,11 @@ export interface ILocalRepositoryState {
    * The name of the default branch, or `undefined` if not available.
    */
   readonly defaultBranchName: string | null
+  /**
+   * The worktrees associated with this repository (including the main
+   * worktree), or an empty array when not loaded / the feature is disabled.
+   */
+  readonly worktrees: ReadonlyArray<WorktreeEntry>
 }
 
 /**

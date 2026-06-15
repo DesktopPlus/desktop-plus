@@ -34,6 +34,10 @@
     // name and truncate accordingly
     width: 100%;
 
+    &.repository-worktree-item {
+      padding-left: calc(16px + var(--spacing) + var(--spacing-half));
+    }
+
     .icon-for-repository {
       // Some room between the icon and repository name
       margin-right: var(--spacing-half);

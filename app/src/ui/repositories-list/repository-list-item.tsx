@@ -1,9 +1,11 @@
 import * as React from 'react'
+import * as Path from 'path'
 
 import { Repository } from '../../models/repository'
 import { Octicon, iconForRepository } from '../octicons'
 import * as octicons from '../octicons/octicons.generated'
 import { Repositoryish } from './group-repositories'
+import { WorktreeEntry } from '../../models/worktree'
 import { HighlightText } from '../lib/highlight-text'
 import { IMatches } from '../../lib/fuzzy-find'
 import { IAheadBehind } from '../../models/branch'
@@ -30,6 +32,26 @@ interface IRepositoryListItemProps {
 
   /** The name of the current branch, if it should be displayed */
   readonly branchName: string | null
+
+  /**
+   * When set to a linked worktree, this row renders as a worktree nested below
+   * its repository instead of as the repository itself.
+   */
+  readonly worktree: WorktreeEntry | null
+}
+
+/** Renders the branch name badge shown next to a repository or worktree. */
+function renderBranchNameBadge(branchName: string | null) {
+  if (!branchName) {
+    return null
+  }
+
+  return (
+    <span className="branch-name">
+      <Octicon className="branch-icon" symbol={octicons.gitBranch} />
+      {branchName}
+    </span>
+  )
 }
 
 /** A repository item. */
@@ -40,6 +62,13 @@ export class RepositoryListItem extends React.Component<
   private readonly listItemRef = createObservableRef<HTMLDivElement>()
 
   public render() {
+    const { worktree } = this.props
+    return worktree !== null && worktree.type === 'linked'
+      ? this.renderWorktree(worktree)
+      : this.renderRepository()
+  }
+
+  private renderRepository() {
     const repository = this.props.repository
     const gitHubRepo =
       repository instanceof Repository ? repository.gitHubRepository : null
@@ -79,18 +108,38 @@ export class RepositoryListItem extends React.Component<
           />
         </div>
 
-        {this.props.branchName && (
-          <span className="branch-name">
-            <Octicon className="branch-icon" symbol={octicons.gitBranch} />
-            {this.props.branchName}
-          </span>
-        )}
+        {renderBranchNameBadge(this.props.branchName)}
 
         {repository instanceof Repository &&
           renderRepoIndicators({
             aheadBehind: this.props.aheadBehind,
             hasChanges: hasChanges,
           })}
+      </div>
+    )
+  }
+
+  private renderWorktree(worktree: WorktreeEntry) {
+    return (
+      <div
+        className="repository-list-item repository-worktree-item"
+        ref={this.listItemRef}
+      >
+        <Tooltip
+          target={this.listItemRef}
+          disabled={enableAccessibleListToolTips()}
+        >
+          {this.renderWorktreeTooltip(worktree)}
+        </Tooltip>
+
+        <Octicon
+          className="icon-for-repository"
+          symbol={octicons.fileDirectory}
+        />
+
+        <div className="name">{Path.basename(worktree.path)}</div>
+
+        {renderBranchNameBadge(this.props.branchName)}
       </div>
     )
   }
@@ -113,6 +162,15 @@ export class RepositoryListItem extends React.Component<
     )
   }
 
+  private renderWorktreeTooltip(worktree: WorktreeEntry) {
+    return (
+      <>
+        <div>{worktree.path}</div>
+        {this.props.branchName && <div>Branch: {this.props.branchName}</div>}
+      </>
+    )
+  }
+
   public shouldComponentUpdate(nextProps: IRepositoryListItemProps): boolean {
     if (
       nextProps.repository instanceof Repository &&
@@ -121,7 +179,11 @@ export class RepositoryListItem extends React.Component<
       return (
         nextProps.repository.id !== this.props.repository.id ||
         nextProps.matches !== this.props.matches ||
-        nextProps.branchName !== this.props.branchName
+        nextProps.branchName !== this.props.branchName ||
+        nextProps.needsDisambiguation !== this.props.needsDisambiguation ||
+        nextProps.aheadBehind !== this.props.aheadBehind ||
+        nextProps.changedFilesCount !== this.props.changedFilesCount ||
+        nextProps.worktree !== this.props.worktree
       )
     } else {
       return true

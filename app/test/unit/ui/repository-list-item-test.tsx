@@ -55,6 +55,7 @@ describe('RepositoryListItem', () => {
         aheadBehind={{ ahead: 2, behind: 1 }}
         changedFilesCount={3}
         branchName={'main'}
+        worktree={null}
       />
     )
 
@@ -80,6 +81,7 @@ describe('RepositoryListItem', () => {
         aheadBehind={null}
         changedFilesCount={0}
         branchName={'main'}
+        worktree={null}
       />
     )
 
@@ -100,6 +102,7 @@ describe('RepositoryListItem', () => {
         aheadBehind={null}
         changedFilesCount={0}
         branchName={'main'}
+        worktree={null}
       />
     )
 

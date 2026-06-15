@@ -1851,6 +1851,7 @@ export class App extends React.Component<IAppProps, IAppState> {
             titleBarStyle={this.state.titleBarStyle}
             showRecentRepositories={this.state.showRecentRepositories}
             showWorktrees={this.state.showWorktrees}
+            showWorktreesInRepoList={this.state.showWorktreesInRepoList}
             showCompareTab={this.state.showCompareTab}
             repositoryIndicatorsEnabled={this.state.repositoryIndicatorsEnabled}
             hideWindowOnQuit={this.state.hideWindowOnQuit}
@@ -3404,6 +3405,7 @@ export class App extends React.Component<IAppProps, IAppState> {
         dispatcher={this.props.dispatcher}
         showBranchNameInRepoList={this.state.showBranchNameInRepoList}
         showWorktrees={this.state.showWorktrees}
+        showWorktreesInRepoList={this.state.showWorktreesInRepoList}
       />
     )
   }

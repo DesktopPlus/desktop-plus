@@ -326,6 +326,7 @@ import {
   enableCopilotConflictResolution,
   enableCopilotSdkCommitMessageGeneration,
   enableCustomIntegration,
+  enableWorktreeSupport,
 } from '../feature-flag'
 import { Banner, BannerType } from '../../models/banner'
 import { ComputedAction } from '../../models/computed-action'
@@ -547,6 +548,7 @@ const shellKey = 'shell'
 
 const showRecentRepositoriesKey = 'show-recent-repositories'
 const showWorktreesKey = 'show-worktrees-foldout'
+const showWorktreesInRepoListKey = 'show-worktrees-in-repo-list'
 const showCompareTabKey = 'show-compare-tab'
 const showCompareTabDefault = true
 const repositoryIndicatorsEnabledKey = 'enable-repository-indicators'
@@ -732,6 +734,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
   private titleBarStyle: TitleBarStyle = __WIN32__ ? 'custom' : 'native'
   private showRecentRepositories: boolean = true
   private showWorktrees: boolean = false
+  private showWorktreesInRepoList: boolean = false
   private showCompareTab: boolean = showCompareTabDefault
   private hideWindowOnQuit: boolean = __DARWIN__
 
@@ -862,6 +865,8 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
     this.showRecentRepositories = getBoolean(showRecentRepositoriesKey) ?? true
     this.showWorktrees = getBoolean(showWorktreesKey) ?? true
+    this.showWorktreesInRepoList =
+      getBoolean(showWorktreesInRepoListKey) ?? false
     this.showCompareTab = getBoolean(showCompareTabKey, showCompareTabDefault)
 
     this.repositoryIndicatorUpdater = new RepositoryIndicatorUpdater(
@@ -1329,6 +1334,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       titleBarStyle: this.titleBarStyle,
       showRecentRepositories: this.showRecentRepositories,
       showWorktrees: this.showWorktrees,
+      showWorktreesInRepoList: this.showWorktreesInRepoList,
       showCompareTab: this.showCompareTab,
       apiRepositories: this.apiRepositoriesStore.getState(),
       useWindowsOpenSSH: this.useWindowsOpenSSH,
@@ -4378,7 +4384,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
     // is in a bad state - let's mark it as missing here and give up on the
     // further work
     const status = await this._loadStatus(repository)
-    this.updateSidebarIndicator(repository, status)
+    await this.updateSidebarIndicator(repository, status)
 
     if (status === null) {
       await this._updateRepositoryMissing(repository, true)
@@ -4485,7 +4491,23 @@ export class AppStore extends TypedBaseStore<IAppState> {
       changedFilesCount: status.workingDirectory.files.length,
       branchName: status.currentBranch || null,
       defaultBranchName: repository.defaultBranch,
+      worktrees: await this.loadWorktreesForRepoList(repository),
     })
+  }
+
+  private async loadWorktreesForRepoList(
+    repository: Repository
+  ): Promise<ReadonlyArray<WorktreeEntry>> {
+    if (!enableWorktreeSupport() || !this.showWorktreesInRepoList) {
+      return []
+    }
+
+    try {
+      return await listWorktrees(repository)
+    } catch (e) {
+      log.error('Failed to load worktrees for repository list', e)
+      return []
+    }
   }
   /**
    * Refresh indicator in repository list for a specific repository
@@ -4511,7 +4533,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       return
     }
 
-    this.updateSidebarIndicator(repository, status)
+    await this.updateSidebarIndicator(repository, status)
     this.emitUpdate()
 
     const lastPush = await inferLastPushForRepository(
@@ -4532,6 +4554,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
         changedFilesCount: existing?.changedFilesCount ?? 0,
         branchName: existing?.branchName ?? null,
         defaultBranchName: existing?.defaultBranchName ?? null,
+        worktrees: existing?.worktrees ?? [],
       })
       this.emitUpdate()
     }
@@ -4607,6 +4630,42 @@ export class AppStore extends TypedBaseStore<IAppState> {
     setBoolean(showWorktreesKey, showWorktrees)
     this.showWorktrees = showWorktrees
     this.updateResizableConstraints()
+    this.emitUpdate()
+  }
+
+  public _setShowWorktreesInRepoList(showWorktreesInRepoList: boolean) {
+    if (this.showWorktreesInRepoList === showWorktreesInRepoList) {
+      return
+    }
+    setBoolean(showWorktreesInRepoListKey, showWorktreesInRepoList)
+    this.showWorktreesInRepoList = showWorktreesInRepoList
+    this.emitUpdate()
+
+    if (showWorktreesInRepoList) {
+      // Eagerly populate worktrees for all repositories without waiting for the next periodic indicator refresh
+      this.refreshAllWorktreesForRepoList()
+    }
+  }
+
+  private async refreshAllWorktreesForRepoList(): Promise<void> {
+    const lookup = this.localRepositoryStateLookup
+
+    for (const repository of this.repositories) {
+      if (repository.missing) {
+        continue
+      }
+
+      const worktrees = await this.loadWorktreesForRepoList(repository)
+      const existing = lookup.get(repository.id)
+      lookup.set(repository.id, {
+        aheadBehind: existing?.aheadBehind ?? null,
+        changedFilesCount: existing?.changedFilesCount ?? 0,
+        branchName: existing?.branchName ?? null,
+        defaultBranchName: existing?.defaultBranchName ?? null,
+        worktrees,
+      })
+    }
+
     this.emitUpdate()
   }
 

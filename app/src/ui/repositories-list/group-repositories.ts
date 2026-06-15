@@ -10,6 +10,7 @@ import { getHTMLURL } from '../../lib/api'
 import { caseInsensitiveCompare, compare } from '../../lib/compare'
 import { IFilterListGroup, IFilterListItem } from '../lib/filter-list'
 import { IAheadBehind } from '../../models/branch'
+import { WorktreeEntry } from '../../models/worktree'
 import { assertNever } from '../../lib/fatal-error'
 import { isGHE, isGHES } from '../../lib/endpoint-capabilities'
 import { Owner } from '../../models/owner'
@@ -65,6 +66,15 @@ export interface IRepositoryListItem extends IFilterListItem {
   readonly changedFilesCount: number
   readonly branchName: string | null
   readonly defaultBranchName: string | null
+  /**
+   * The worktree this row represents, when worktrees are shown in the list.
+   *
+   * The repository row carries the main worktree (so clicking it switches to
+   * the main worktree); linked worktrees each get their own row nested below
+   * it. `null` when worktree info isn't available (feature disabled or not yet
+   * loaded), in which case the row is a plain repository row.
+   */
+  readonly worktree: WorktreeEntry | null
 }
 
 const recentRepositoriesThreshold = 7
@@ -171,28 +181,78 @@ const toSortedListItems = (
       const repoState = localRepositoryStateLookup.get(r.id)
       const title = getDisplayTitle(r)
 
-      return {
-        text: r instanceof Repository ? [title, nameOf(r)] : [title],
-        id: r.id.toString(),
-        repository: r,
-        needsDisambiguation:
-          // If the repository is in the enterprise group and has a duplicate
-          // name in the group, we need to disambiguate it. We don't have to
-          // disambiguate repositories in the 'dotcom' group because they are
-          // already grouped by owner. If the repository is in the 'recent'
-          // group and has a duplicate name in any group, we need to
-          // disambiguate it.
-          ((groupNames.get(title) ?? 0) > 1 && group.kind === 'enterprise') ||
-          ((allNames.get(title) ?? 0) > 1 && group.kind === 'recent'),
-        aheadBehind: repoState?.aheadBehind ?? null,
-        changedFilesCount: repoState?.changedFilesCount ?? 0,
-        branchName: repoState?.branchName ?? null,
-        defaultBranchName: repoState?.defaultBranchName ?? null,
-      }
+      const needsDisambiguation =
+        // If the repository is in the enterprise group and has a duplicate
+        // name in the group, we need to disambiguate it. We don't have to
+        // disambiguate repositories in the 'dotcom' group because they are
+        // already grouped by owner. If the repository is in the 'recent'
+        // group and has a duplicate name in any group, we need to
+        // disambiguate it.
+        ((groupNames.get(title) ?? 0) > 1 && group.kind === 'enterprise') ||
+        ((allNames.get(title) ?? 0) > 1 && group.kind === 'recent')
+
+      return buildRepositoryRows(r, repoState, needsDisambiguation)
     })
-    .sort(({ repository: x }, { repository: y }) =>
-      caseInsensitiveCompare(getDisplayTitle(x), getDisplayTitle(y))
+    .sort((x, y) =>
+      caseInsensitiveCompare(
+        getDisplayTitle(x[0].repository),
+        getDisplayTitle(y[0].repository)
+      )
     )
+    .flat()
+}
+
+const shortBranchName = (branch: string | null): string | null =>
+  branch ? branch.replace(/^refs\/heads\//, '') : null
+
+/**
+ * Builds the list rows for a single repository: the repository row itself
+ * (representing the main worktree) followed by one row per linked worktree.
+ */
+function buildRepositoryRows(
+  r: Repositoryish,
+  repoState: ILocalRepositoryState | undefined,
+  needsDisambiguation: boolean
+): IRepositoryListItem[] {
+  const title = getDisplayTitle(r)
+  const text = r instanceof Repository ? [title, nameOf(r)] : [title]
+  const defaultBranchName = repoState?.defaultBranchName ?? null
+
+  const worktrees = r instanceof Repository ? repoState?.worktrees ?? [] : []
+  const mainWorktree = worktrees.find(wt => wt.type === 'main') ?? null
+
+  const mainWorktreeRow: IRepositoryListItem = {
+    text,
+    id: r.id.toString(),
+    repository: r,
+    needsDisambiguation,
+    aheadBehind: repoState?.aheadBehind ?? null,
+    changedFilesCount: repoState?.changedFilesCount ?? 0,
+    branchName: mainWorktree
+      ? shortBranchName(mainWorktree.branch)
+      : repoState?.branchName ?? null,
+    defaultBranchName,
+    worktree: mainWorktree,
+  }
+
+  // Linked worktree rows match the same filter text as their repository so they travel with it
+  const linkedWorktreeRows = worktrees
+    .filter(wt => wt.type === 'linked')
+    .map(
+      (wt): IRepositoryListItem => ({
+        text,
+        id: `${r.id}:${wt.path}`,
+        repository: r,
+        needsDisambiguation: false,
+        aheadBehind: null,
+        changedFilesCount: 0,
+        branchName: shortBranchName(wt.branch),
+        defaultBranchName,
+        worktree: wt,
+      })
+    )
+
+  return [mainWorktreeRow, ...linkedWorktreeRows]
 }
 
 /**
@@ -209,18 +269,27 @@ export function buildPinnedGroup(
     return null
   }
 
-  const idToItem = new Map<number, IRepositoryListItem>()
+  const idToItems = new Map<number, IRepositoryListItem[]>()
+  const completedIds = new Set<number>()
   for (const group of allGroups) {
     for (const item of group.items) {
-      if (item.repository.id > 0 && !idToItem.has(item.repository.id)) {
-        idToItem.set(item.repository.id, item)
+      const id = item.repository.id
+      if (id <= 0 || completedIds.has(id)) {
+        continue
       }
+      const rows = idToItems.get(id)
+      if (rows === undefined) {
+        idToItems.set(id, [item])
+      } else {
+        rows.push(item)
+      }
+    }
+    for (const id of idToItems.keys()) {
+      completedIds.add(id)
     }
   }
 
-  const items = pinnedIds
-    .map(id => idToItem.get(id))
-    .filter((item): item is IRepositoryListItem => item !== undefined)
+  const items = pinnedIds.flatMap(id => idToItems.get(id) ?? [])
 
   if (items.length === 0) {
     return null

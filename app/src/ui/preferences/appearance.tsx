@@ -53,6 +53,8 @@ interface IAppearanceProps {
   readonly onShowRecentRepositoriesChanged: (show: boolean) => void
   readonly showWorktrees: boolean
   readonly onShowWorktreesChanged: (show: boolean) => void
+  readonly showWorktreesInRepoList: boolean
+  readonly onShowWorktreesInRepoListChanged: (show: boolean) => void
   readonly showCompareTab: boolean
   readonly onShowCompareTabChanged: (show: boolean) => void
   readonly showBranchNameInRepoList: ShowBranchNameInRepoListSetting
@@ -80,6 +82,7 @@ interface IAppearanceState {
   readonly titleBarStyle: TitleBarStyle
   readonly showRecentRepositories: boolean
   readonly showWorktrees: boolean
+  readonly showWorktreesInRepoList: boolean
   readonly showCompareTab: boolean
 }
 
@@ -117,6 +120,7 @@ export class Appearance extends React.Component<
       titleBarStyle: props.titleBarStyle,
       showRecentRepositories: props.showRecentRepositories,
       showWorktrees: props.showWorktrees,
+      showWorktreesInRepoList: props.showWorktreesInRepoList,
       showCompareTab: props.showCompareTab,
     }
 
@@ -152,6 +156,7 @@ export class Appearance extends React.Component<
       selectedDiffFontSize,
       selectedDiffFontFamily,
       showWorktrees: this.props.showWorktrees,
+      showWorktreesInRepoList: this.props.showWorktreesInRepoList,
       showCompareTab: this.props.showCompareTab,
     })
 
@@ -201,6 +206,14 @@ export class Appearance extends React.Component<
     const show = event.currentTarget.checked
     this.setState({ showWorktrees: show })
     this.props.onShowWorktreesChanged(show)
+  }
+
+  private onShowWorktreesInRepoListChanged = (
+    event: React.FormEvent<HTMLInputElement>
+  ) => {
+    const show = event.currentTarget.checked
+    this.setState({ showWorktreesInRepoList: show })
+    this.props.onShowWorktreesInRepoListChanged(show)
   }
 
   private onShowCompareTabChanged = (
@@ -460,6 +473,16 @@ export class Appearance extends React.Component<
               this.state.showWorktrees ? CheckboxValue.On : CheckboxValue.Off
             }
             onChange={this.onShowWorktreesChanged}
+          />
+
+          <Checkbox
+            label="Show worktrees in repository list"
+            value={
+              this.state.showWorktreesInRepoList
+                ? CheckboxValue.On
+                : CheckboxValue.Off
+            }
+            onChange={this.onShowWorktreesInRepoListChanged}
           />
         </div>
         <div className="advanced-section">

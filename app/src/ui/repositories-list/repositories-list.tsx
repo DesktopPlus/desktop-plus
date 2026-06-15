@@ -18,6 +18,8 @@ import {
 import { IFilterListGroup } from '../lib/filter-list'
 import { IMatches } from '../../lib/fuzzy-find'
 import { ILocalRepositoryState, Repository } from '../../models/repository'
+import { normalizePath } from '../../lib/helpers/path'
+import { FoldoutType } from '../../lib/app-state'
 import { Dispatcher } from '../dispatcher'
 import { Button } from '../lib/button'
 import { Octicon, syncClockwise } from '../octicons'
@@ -94,6 +96,9 @@ interface IRepositoriesListProps {
 
   /** Whether or not the worktrees dropdown should be shown in the toolbar */
   readonly showWorktrees: boolean
+
+  /** Whether or not linked worktrees should be shown in the repository list */
+  readonly showWorktreesInRepoList: boolean
 }
 
 interface IRepositoriesListState {
@@ -116,15 +121,28 @@ function findMatchingListItem(
   selectedRepository: Repositoryish | null
 ) {
   if (selectedRepository !== null) {
+    let fallback: IRepositoryListItem | null = null
+
     for (const group of groups) {
       for (const item of group.items) {
-        if (item.repository.id === selectedRepository.id) {
+        if (item.repository.id !== selectedRepository.id) {
+          continue
+        }
+
+        if (
+          item.worktree !== null &&
+          normalizePath(item.worktree.path) ===
+            normalizePath(selectedRepository.path)
+        ) {
           return item
         }
+
+        fallback ??= item
       }
     }
-  }
 
+    return fallback
+  }
   return null
 }
 
@@ -197,13 +215,14 @@ export class RepositoriesList extends React.Component<
     const repository = item.repository
     return (
       <RepositoryListItem
-        key={repository.id}
+        key={item.id}
         repository={repository}
         needsDisambiguation={item.needsDisambiguation}
         matches={matches}
         aheadBehind={item.aheadBehind}
         changedFilesCount={item.changedFilesCount}
         branchName={this.shouldShowBranchName(item) ? item.branchName : null}
+        worktree={item.worktree}
       />
     )
   }
@@ -333,6 +352,20 @@ export class RepositoriesList extends React.Component<
         ? item.aheadBehind.ahead > 0 || item.aheadBehind.behind > 0
         : false)
     this.props.dispatcher.recordRepoClicked(hasIndicator)
+
+    // Each row maps to a specific worktree. Clicking a row switches to
+    // its worktree, unless the row is already the checked-out one.
+    // Switching worktrees already selects the corresponding repository
+    if (
+      item.worktree !== null &&
+      item.repository instanceof Repository &&
+      normalizePath(item.worktree.path) !== normalizePath(item.repository.path)
+    ) {
+      this.props.dispatcher.closeFoldout(FoldoutType.Repository)
+      this.props.dispatcher.switchWorktree(item.repository, item.worktree)
+      return
+    }
+
     this.props.onSelectionChanged(item.repository)
   }
 
@@ -442,6 +475,8 @@ export class RepositoriesList extends React.Component<
           invalidationProps={{
             repositories: this.props.repositories,
             filterText: this.props.filterText,
+            localRepositoryStateLookup: this.props.localRepositoryStateLookup,
+            showWorktreesInRepoList: this.props.showWorktreesInRepoList,
           }}
           onItemContextMenu={this.onItemContextMenu}
           getGroupAriaLabel={this.getGroupAriaLabelGetter(groups)}
