@@ -369,6 +369,38 @@ export class NoChanges extends React.Component<
   private onOpenInExternalEditorClicked = () =>
     this.props.dispatcher.incrementMetric('suggestedStepOpenInExternalEditor')
 
+  private renderOpenInShell() {
+    const itemId: MenuIDs = 'open-in-shell'
+    const menuItem = this.getMenuItemInfo(itemId)
+
+    if (menuItem === undefined) {
+      log.error(`Could not find matching menu item for ${itemId}`)
+      return null
+    }
+
+    const title = `Open the repository in terminal`
+
+    const description = (
+      <>
+        Select your terminal in{' '}
+        <LinkButton onClick={this.openIntegrationPreferences}>
+          {__DARWIN__ ? 'Settings' : 'Options'}
+        </LinkButton>
+      </>
+    )
+
+    return this.renderMenuBackedAction(
+      itemId,
+      title,
+      octicons.terminal,
+      description,
+      this.onOpenInShellClicked
+    )
+  }
+
+  private onOpenInShellClicked = () =>
+    this.props.dispatcher.incrementMetric('suggestedStepOpenInShell')
+
   private renderRemoteAction() {
     const { remote, aheadBehind, branchesState, tagsToPush } =
       this.props.repositoryState
@@ -803,6 +835,7 @@ export class NoChanges extends React.Component<
         </SuggestedActionGroup>
         <SuggestedActionGroup>
           {this.renderOpenInExternalEditor()}
+          {this.renderOpenInShell()}
           {this.renderShowInFileManager()}
           {this.renderViewOnGitHub()}
         </SuggestedActionGroup>

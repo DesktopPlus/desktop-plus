@@ -234,6 +234,12 @@ export interface IDailyMeasures {
   readonly suggestedStepOpenWorkingDirectory: number
 
   /**
+   * The number of times the user has opened their repository in terminal
+   * from the suggested next steps view
+   */
+  readonly suggestedStepOpenInShell: number
+
+  /**
    * The number of times the user has opened their repository on GitHub from the
    * suggested next steps view
    */
