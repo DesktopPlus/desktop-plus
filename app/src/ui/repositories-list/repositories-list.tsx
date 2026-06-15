@@ -31,7 +31,11 @@ import { encodePathAsUrl } from '../../lib/path'
 import { TooltippedContent } from '../lib/tooltipped-content'
 import memoizeOne from 'memoize-one'
 import { KeyboardShortcut } from '../keyboard-shortcut/keyboard-shortcut'
-import { generateRepositoryListContextMenu } from '../repositories-list/repository-list-item-context-menu'
+import {
+  generateRepositoryListContextMenu,
+  generateWorktreeListItemContextMenu,
+} from '../repositories-list/repository-list-item-context-menu'
+import { openWorktreeInNewWindow } from '../main-process-proxy'
 import { enableWorktreeSupport } from '../../lib/feature-flag'
 import { SectionFilterList } from '../lib/section-filter-list'
 import { assertNever } from '../../lib/fatal-error'
@@ -63,19 +67,22 @@ interface IRepositoriesListProps {
   readonly onRemoveRepository: (repository: Repositoryish) => void
 
   /** Called when the repository should be shown in Finder/Explorer/File Manager. */
-  readonly onShowRepository: (repository: Repositoryish) => void
+  readonly onShowRepository: (repository: Repositoryish, path?: string) => void
 
   /** Called when the repository should be opened in the default web browser. */
   readonly onViewOnGitHub: (repository: Repositoryish) => void
 
   /** Called when the repository should be shown in the shell. */
-  readonly onOpenInShell: (repository: Repositoryish) => void
+  readonly onOpenInShell: (repository: Repositoryish, path?: string) => void
 
   /** Called when the repository should be opened in a new window. */
-  readonly onOpenInNewWindow: (repository: Repositoryish) => void
+  readonly onOpenInNewWindow: (repository: Repositoryish, path?: string) => void
 
   /** Called when the repository should be opened in an external editor */
-  readonly onOpenInExternalEditor: (repository: Repositoryish) => void
+  readonly onOpenInExternalEditor: (
+    repository: Repositoryish,
+    path?: string
+  ) => void
 
   /** The current external editor selected by the user */
   readonly externalEditorLabel?: string
@@ -375,11 +382,38 @@ export class RepositoriesList extends React.Component<
   ) => {
     event.preventDefault()
 
+    if (
+      item.worktree !== null &&
+      item.worktree.type === 'linked' &&
+      item.repository instanceof Repository
+    ) {
+      showContextualMenu(
+        generateWorktreeListItemContextMenu({
+          repository: item.repository,
+          worktree: item.worktree,
+          shellLabel: this.props.shellLabel,
+          externalEditorLabel: this.getExternalEditorLabel(item.repository),
+          onCreateWorktree: this.onCreateWorktree,
+          onRenameWorktree: this.onRenameWorktree,
+          onDeleteWorktree: this.onDeleteWorktree,
+          onViewOnGitHub: this.props.onViewOnGitHub,
+          onOpenWorktreeInNewWindow: this.onOpenWorktreeInNewWindow,
+          onOpenInShell: this.props.onOpenInShell,
+          onShowRepository: this.props.onShowRepository,
+          onOpenInExternalEditor: this.props.onOpenInExternalEditor,
+          onCopyWorktreePath: path =>
+            this.props.dispatcher.copyPathToClipboard(path),
+        })
+      )
+      return
+    }
+
     const isPinned =
       item.repository instanceof Repository &&
       this.state.pinnedRepositoriesIds.includes(item.repository.id)
 
     const items = generateRepositoryListContextMenu({
+      worktreePath: item.worktree?.path,
       onRemoveRepository: this.props.onRemoveRepository,
       onShowRepository: this.props.onShowRepository,
       onOpenInNewWindow: this.props.onOpenInNewWindow,
@@ -632,6 +666,25 @@ export class RepositoriesList extends React.Component<
   private onShowWorktrees = (repository: Repository) => {
     this.props.dispatcher.selectRepository(repository)
     this.props.dispatcher.showWorktreesFoldout()
+  }
+
+  private onRenameWorktree = (repository: Repository, worktreePath: string) => {
+    this.props.dispatcher.showPopup({
+      type: PopupType.RenameWorktree,
+      repository,
+      worktreePath,
+    })
+  }
+
+  private onDeleteWorktree = (repository: Repository, worktreePath: string) => {
+    this.props.dispatcher.requestDeleteWorktree(repository, worktreePath)
+  }
+
+  private onOpenWorktreeInNewWindow = (
+    repository: Repository,
+    worktreePath: string
+  ) => {
+    openWorktreeInNewWindow(repository.id, worktreePath)
   }
 
   private onChangeRepositoryGroupName = (repository: Repository) => {

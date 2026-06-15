@@ -3424,22 +3424,26 @@ export class App extends React.Component<IAppProps, IAppState> {
     }
   }
 
-  private openInShell = (repository: Repository | CloningRepository) => {
+  private openInShell = (
+    repository: Repository | CloningRepository,
+    path?: string
+  ) => {
     if (!(repository instanceof Repository)) {
       return
     }
 
-    this.props.dispatcher.openShell(repository.path)
+    this.props.dispatcher.openShell(path ?? repository.path)
   }
 
   private openRepositoryInNewWindow = (
-    repository: Repository | CloningRepository | null
+    repository: Repository | CloningRepository | null,
+    path?: string
   ) => {
     if (!(repository instanceof Repository) || repository.missing) {
       return
     }
 
-    openRepositoryInNewWindow(repository.path)
+    openRepositoryInNewWindow(path ?? repository.path)
   }
 
   private showRepositoryPreferences = () => {
@@ -3465,13 +3469,17 @@ export class App extends React.Component<IAppProps, IAppState> {
   }
 
   private openInExternalEditor = (
-    repository: Repository | CloningRepository
+    repository: Repository | CloningRepository,
+    path?: string
   ) => {
     if (!(repository instanceof Repository)) {
       return
     }
 
-    this.props.dispatcher.openInExternalEditor(repository, repository.path)
+    this.props.dispatcher.openInExternalEditor(
+      repository,
+      path ?? repository.path
+    )
   }
 
   private openRepositoryInSelectedEditor = async (
@@ -3502,12 +3510,15 @@ export class App extends React.Component<IAppProps, IAppState> {
     this.props.dispatcher.openInExternalEditor(nonCloningRepository, fullPath)
   }
 
-  private showRepository = (repository: Repository | CloningRepository) => {
+  private showRepository = (
+    repository: Repository | CloningRepository,
+    path?: string
+  ) => {
     if (!(repository instanceof Repository)) {
       return
     }
 
-    shell.showFolderContents(repository.path)
+    shell.showFolderContents(path ?? repository.path)
   }
 
   private onRepositoryDropdownStateChanged = (newState: DropdownState) => {
