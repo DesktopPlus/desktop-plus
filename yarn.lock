@@ -870,10 +870,10 @@
   resolved "https://registry.yarnpkg.com/@polka/url/-/url-1.0.0-next.25.tgz#f077fdc0b5d0078d30893396ff4827a13f99e817"
   integrity sha512-j7P6Rgr3mmtdkeDGTe0E/aYyWEWVtc5yFXtHCRHs28/jptDEWfaVOc5T7cblqy1XKPPfCxJc/8DwQ5YgLOZOVQ==
 
-"@primer/octicons@^19.0.0":
-  version "19.8.0"
-  resolved "https://registry.yarnpkg.com/@primer/octicons/-/octicons-19.8.0.tgz#67cad2f55cd1c6e5ccae2670b9c1f595321995d1"
-  integrity sha512-Imze/fyW41Io5fN+27T5EAeXJrgBjMbz6nzU+wYbRylXvIAjLPUvaJPVoStiFlgSU+TjTUJqg5A9rgMDzTyMCg==
+"@primer/octicons@^19.28.1":
+  version "19.28.1"
+  resolved "https://registry.yarnpkg.com/@primer/octicons/-/octicons-19.28.1.tgz#dcd47eef3ba34b7b642205df8232626229750701"
+  integrity sha512-pwSilXmgNrbVF2bChkh4zZtUyb4Vr4niYhA9PhUdtjVz86A2iwA/YjjopHS0suT+I7niUZJEepEpmSC7kARKNQ==
   dependencies:
     object-assign "^4.1.1"
 
