@@ -1007,12 +1007,15 @@ export class CommitMessage extends React.Component<
     const noChangesAvailable = !commitToAmend && noFilesSelected
 
     let ariaLabel = 'Generate commit message with Copilot'
+    const canCancelGenerateCommitMessage = this.canCancelGenerateCommitMessage
+    const showCancelGenerateCommitMessage =
+      isGeneratingCommitMessage === true && canCancelGenerateCommitMessage
 
-    if (!isGeneratingCommitMessage) {
+    if (!isGeneratingCommitMessage && noChangesAvailable) {
       ariaLabel += '. Files must be selected to generate a commit message.'
-    } else if (this.canCancelGenerateCommitMessage) {
+    } else if (showCancelGenerateCommitMessage) {
       ariaLabel = 'Cancel generating commit details'
-    } else {
+    } else if (isGeneratingCommitMessage) {
       ariaLabel = 'Generating commit details…'
     }
 
@@ -1027,7 +1030,7 @@ export class CommitMessage extends React.Component<
           disabled={
             isCommitting === true ||
             (isGeneratingCommitMessage === true &&
-              !this.canCancelGenerateCommitMessage) ||
+              !canCancelGenerateCommitMessage) ||
             (!isGeneratingCommitMessage && noChangesAvailable)
           }
         >
