@@ -5,9 +5,9 @@ import { exec } from 'dugite'
 import { DiffType, ITextDiff } from '../../../src/models/diff'
 import { setupEmptyRepository } from '../../helpers/repositories'
 import { makeCommit, switchTo } from '../../helpers/repository-scaffolding'
-import { getStageDiff } from '../../../src/lib/git'
+import { getResolutionDiff } from '../../../src/lib/git'
 
-describe('git/diff/getStageDiff', () => {
+describe('git/diff/getResolutionDiff (stage mode)', () => {
   it('computes diff for ours (:2) during active conflict', async t => {
     const repo = await setupEmptyRepository(t)
 
@@ -39,11 +39,10 @@ describe('git/diff/getStageDiff', () => {
     await exec(['merge', 'feature', '--no-commit'], repo.path)
 
     // Compute ours diff: merge base → :2: (master's version)
-    const result = await getStageDiff(repo, 'file.txt', ':2')
+    const diff = await getResolutionDiff(repo, 'file.txt', 'ours')
 
-    assert.equal(result.kind, 'diff')
-    assert.equal(result.diff.kind, DiffType.Text)
-    const textDiff = result.diff as ITextDiff
+    assert.equal(diff.kind, DiffType.Text)
+    const textDiff = diff as ITextDiff
     assert(textDiff.hunks.length > 0)
     assert(textDiff.text.includes('-line 2'), 'should delete base line')
     assert(
@@ -79,11 +78,10 @@ describe('git/diff/getStageDiff', () => {
     await exec(['merge', 'feature', '--no-commit'], repo.path)
 
     // Compute theirs diff: merge base → :3: (feature's version)
-    const result = await getStageDiff(repo, 'file.txt', ':3')
+    const diff = await getResolutionDiff(repo, 'file.txt', 'theirs')
 
-    assert.equal(result.kind, 'diff')
-    assert.equal(result.diff.kind, DiffType.Text)
-    const textDiff = result.diff as ITextDiff
+    assert.equal(diff.kind, DiffType.Text)
+    const textDiff = diff as ITextDiff
     assert(textDiff.hunks.length > 0)
     assert(
       textDiff.text.includes('+feature change'),
@@ -91,7 +89,45 @@ describe('git/diff/getStageDiff', () => {
     )
   })
 
-  it('returns missing-stage when file only exists in one branch', async t => {
+  it('shows all-deletion diff when file deleted in requested stage', async t => {
+    const repo = await setupEmptyRepository(t)
+
+    // Create base with the file
+    await makeCommit(repo, {
+      entries: [{ path: 'file.txt', contents: 'base content\n' }],
+      commitMessage: 'base',
+    })
+
+    // Feature branch deletes the file
+    await switchTo(repo, 'feature')
+    await makeCommit(repo, {
+      entries: [{ path: 'file.txt', contents: null }],
+      commitMessage: 'feature deletes file',
+    })
+
+    // Master modifies the file to create a modify/delete conflict
+    await exec(['checkout', 'master'], repo.path)
+    await makeCommit(repo, {
+      entries: [{ path: 'file.txt', contents: 'master modified\n' }],
+      commitMessage: 'master modifies file',
+    })
+
+    await exec(['merge', 'feature', '--no-commit'], repo.path)
+
+    // file.txt was deleted in feature (:3 doesn't exist), but base (:1) does.
+    // Should produce an all-deletion diff (base → empty), same as how deleted
+    // files appear in the regular changes view.
+    const diff = await getResolutionDiff(repo, 'file.txt', 'theirs')
+
+    assert.equal(diff.kind, DiffType.Text)
+    const textDiff = diff as ITextDiff
+    assert(
+      textDiff.text.includes('-base content'),
+      'should show base content as deleted'
+    )
+  })
+
+  it('returns Unrenderable when neither base nor stage exists', async t => {
     const repo = await setupEmptyRepository(t)
 
     // Create base with a shared file to ensure merge has a common ancestor
@@ -119,10 +155,9 @@ describe('git/diff/getStageDiff', () => {
 
     await exec(['merge', 'feature', '--no-commit'], repo.path)
 
-    // new-file.txt only exists in feature (:3), not in master (:2)
-    const result = await getStageDiff(repo, 'new-file.txt', ':2')
-    assert.equal(result.kind, 'missing-stage')
-    assert.equal(result.stage, ':2')
+    // new-file.txt has no base (:1) and no ours (:2) — only exists in :3
+    const diff = await getResolutionDiff(repo, 'new-file.txt', 'ours')
+    assert.equal(diff.kind, DiffType.Unrenderable)
   })
 
   it('respects hideWhitespaceInDiff flag', async t => {
@@ -148,11 +183,10 @@ describe('git/diff/getStageDiff', () => {
     await exec(['merge', 'feature', '--no-commit'], repo.path)
 
     // With whitespace hidden, the spacing change should not appear as a diff
-    const result = await getStageDiff(repo, 'file.txt', ':3', true)
+    const diff = await getResolutionDiff(repo, 'file.txt', 'theirs', true)
 
-    assert.equal(result.kind, 'diff')
-    assert.equal(result.diff.kind, DiffType.Text)
-    const textDiff = result.diff as ITextDiff
+    assert.equal(diff.kind, DiffType.Text)
+    const textDiff = diff as ITextDiff
     // The whitespace-only change (hello world → hello  world) should be
     // suppressed, but the content addition (extra) should still appear
     assert(

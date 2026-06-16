@@ -401,40 +401,95 @@ export async function getWorkingDirectoryDiff(
 }
 
 /**
- * Compute a diff between the merge base version of a file and Copilot's
- * resolved content string.
+ * Compute a diff between the merge base version of a file and either
+ * Copilot's resolved content string or the content from a specific merge
+ * index stage.
  *
  * During an active merge, git stores the common ancestor at index stage 1
- * (`:1:path`). We diff that against the resolved content so the user sees
+ * (`:1:path`). We diff that against the target content so the user sees
  * what changed relative to the last clean version — no conflict markers.
  *
- * Uses `git diff --no-index` with temp files, following the same pattern as
- * getWorkingDirectoryDiff for new/untracked files.
+ * When `content` is `'ours'` or `'theirs'`, the content is read from
+ * the corresponding merge index stage (`:2:` or `:3:`). These always refer
+ * to git's definition: `ours` = stage 2 (HEAD at merge time), `theirs` =
+ * stage 3 (the commit being merged in). Note that during a rebase, git
+ * considers the upstream branch as "ours" and the rebased commit as
+ * "theirs" — the opposite of what the user might expect. The caller is
+ * responsible for mapping user-facing labels (e.g. "Current branch") to
+ * the correct git side.
+ *
+ * When `content` is any other string, it's used directly as the right
+ * side of the diff (e.g. Copilot's resolved text).
+ *
+ * For stage-based diffs, follows `getWorkingDirectoryDiff` patterns:
+ * - If the stage doesn't exist but the base does (file deleted in that
+ *   branch), diffs base → empty to show all lines as deletions.
+ * - If neither base nor stage exists, returns Unrenderable.
+ * - If the base doesn't exist but the stage does (file added in that
+ *   branch), diffs empty → stage to show all lines as additions.
+ *
+ * Uses `git diff --no-index` with temp files.
+ *
+ * @param repository The repository with an active merge conflict
+ * @param filePath   Repo-relative path of the conflicted file
+ * @param content    `'ours'` (stage 2), `'theirs'` (stage 3), or a resolved
+ *                   content string to diff directly
+ * @param hideWhitespaceInDiff When true, passes `-w` to ignore whitespace
  */
 export async function getResolutionDiff(
   repository: Repository,
   filePath: string,
-  resolvedContent: string,
+  content: string | 'ours' | 'theirs',
   hideWhitespaceInDiff: boolean = false
 ): Promise<IDiff> {
-  // Read merge base (stage 1) from the index — the common ancestor before
-  // the conflict. Falls back to on-disk content if not in a merge.
+  const stageMap: Record<string, string> = { ours: ':2', theirs: ':3' }
+  const stage = stageMap[content]
+
   let baseContent: string
-  try {
-    const buffer = await getBlobContents(repository, ':1', filePath)
-    baseContent = buffer.toString('utf-8')
-  } catch {
-    // Not in a merge or file doesn't exist at stage 1 — fall back to
-    // reading the on-disk file (which may have conflict markers).
-    baseContent = await readFile(Path.join(repository.path, filePath), 'utf8')
+  let targetContent: string
+
+  if (stage === undefined) {
+    // Direct content mode (e.g. Copilot's resolved text).
+    // Read merge base from stage 1; fall back to on-disk if not in a merge.
+    try {
+      const buffer = await getBlobContents(repository, ':1', filePath)
+      baseContent = buffer.toString('utf-8')
+    } catch {
+      baseContent = await readFile(Path.join(repository.path, filePath), 'utf8')
+    }
+    targetContent = content
+  } else {
+    // Stage mode — read both base and target from the merge index.
+    let baseExists = true
+    try {
+      const buffer = await getBlobContents(repository, ':1', filePath)
+      baseContent = buffer.toString('utf-8')
+    } catch {
+      baseContent = ''
+      baseExists = false
+    }
+
+    let stageExists = true
+    try {
+      const buffer = await getBlobContents(repository, stage, filePath)
+      targetContent = buffer.toString('utf-8')
+    } catch {
+      targetContent = ''
+      stageExists = false
+    }
+
+    // Neither base nor stage exists — nothing meaningful to diff.
+    if (!baseExists && !stageExists) {
+      return { kind: DiffType.Unrenderable }
+    }
   }
 
-  const tempBase = getTempFilePath('conflict-base')
-  const tempResolved = getTempFilePath('conflict-resolved')
+  const tempBase = getTempFilePath('resolution-diff-base')
+  const tempTarget = getTempFilePath('resolution-diff-target')
 
   try {
     await writeFile(tempBase, baseContent, 'utf8')
-    await writeFile(tempResolved, resolvedContent, 'utf8')
+    await writeFile(tempTarget, targetContent, 'utf8')
 
     const args = [
       'diff',
@@ -446,7 +501,7 @@ export async function getResolutionDiff(
       '--no-index',
       '--',
       tempBase,
-      tempResolved,
+      tempTarget,
     ]
 
     const { stdout } = await git(args, repository.path, 'getResolutionDiff', {
@@ -479,118 +534,7 @@ export async function getResolutionDiff(
     }
   } finally {
     await unlink(tempBase).catch(() => {})
-    await unlink(tempResolved).catch(() => {})
-  }
-}
-
-/**
- * The result of attempting to compute a diff for a specific merge stage.
- *
- * - `diff`: successfully computed diff
- * - `missing-stage`: the requested stage (`:2:` or `:3:`) does not exist,
- *   typically because the file was only added in the other branch
- * - `error`: an unexpected error occurred
- */
-export type StageDiffResult =
-  | { readonly kind: 'diff'; readonly diff: IDiff }
-  | { readonly kind: 'missing-stage'; readonly stage: ':2' | ':3' }
-  | { readonly kind: 'error' }
-
-/**
- * Compute a diff showing the changes a specific merge stage introduces
- * relative to the merge base (`:1:`).
- *
- * @param repository The repository with an active merge conflict
- * @param filePath   Repo-relative path of the conflicted file
- * @param stage      Which stage to compare — `:2` for ours (current branch)
- *                   or `:3` for theirs (incoming branch)
- * @param hideWhitespaceInDiff When true, passes `-w` to ignore whitespace
- */
-export async function getStageDiff(
-  repository: Repository,
-  filePath: string,
-  stage: ':2' | ':3',
-  hideWhitespaceInDiff: boolean = false
-): Promise<StageDiffResult> {
-  // Read merge base (stage 1). If it doesn't exist (add/add conflict),
-  // use an empty string so the diff shows the full file as added.
-  let baseContent: string
-  try {
-    const buffer = await getBlobContents(repository, ':1', filePath)
-    baseContent = buffer.toString('utf-8')
-  } catch {
-    baseContent = ''
-  }
-
-  // Read the requested stage content. If it doesn't exist, the file
-  // is not present in that branch.
-  let stageContent: string
-  try {
-    const buffer = await getBlobContents(repository, stage, filePath)
-    stageContent = buffer.toString('utf-8')
-  } catch {
-    return { kind: 'missing-stage', stage }
-  }
-
-  const tempBase = getTempFilePath('stage-diff-base')
-  const tempStage = getTempFilePath('stage-diff-stage')
-
-  try {
-    await writeFile(tempBase, baseContent, 'utf8')
-    await writeFile(tempStage, stageContent, 'utf8')
-
-    const args = [
-      'diff',
-      ...(hideWhitespaceInDiff ? ['-w'] : []),
-      '--no-ext-diff',
-      '--patch-with-raw',
-      '-z',
-      '--no-color',
-      '--no-index',
-      '--',
-      tempBase,
-      tempStage,
-    ]
-
-    const { stdout } = await git(args, repository.path, 'getStageDiff', {
-      successExitCodes: new Set([0, 1]),
-      encoding: 'buffer',
-    })
-
-    if (!isValidBuffer(stdout)) {
-      return { kind: 'diff', diff: { kind: DiffType.Unrenderable } }
-    }
-
-    const diff = diffFromRawDiffOutput(stdout)
-
-    if (isDiffTooLarge(diff)) {
-      return {
-        kind: 'diff',
-        diff: {
-          kind: DiffType.LargeText,
-          text: diff.contents,
-          hunks: diff.hunks,
-          maxLineNumber: diff.maxLineNumber,
-          hasHiddenBidiChars: diff.hasHiddenBidiChars,
-        },
-      }
-    }
-
-    return {
-      kind: 'diff',
-      diff: {
-        kind: DiffType.Text,
-        text: diff.contents,
-        hunks: diff.hunks,
-        maxLineNumber: diff.maxLineNumber,
-        hasHiddenBidiChars: diff.hasHiddenBidiChars,
-      },
-    }
-  } catch {
-    return { kind: 'error' }
-  } finally {
-    await unlink(tempBase).catch(() => {})
-    await unlink(tempStage).catch(() => {})
+    await unlink(tempTarget).catch(() => {})
   }
 }
 
