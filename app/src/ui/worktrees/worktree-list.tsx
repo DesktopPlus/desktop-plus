@@ -7,6 +7,8 @@ import { WorktreeListItem } from './worktree-list-item'
 import { Button } from '../lib/button'
 import { IMatches } from '../../lib/fuzzy-find'
 import { ClickSource } from '../lib/list'
+import { Octicon } from '../octicons'
+import * as octicons from '../octicons/octicons.generated'
 import memoizeOne from 'memoize-one'
 
 const RowHeight = 30
@@ -99,9 +101,10 @@ export class WorktreeList extends React.Component<IWorktreeListProps> {
     }
     return (
       <Button
-        className="new-worktree-button"
+        className="new-worktree-button button-with-icon"
         onClick={this.props.onCreateNewWorktree}
       >
+        <Octicon symbol={octicons.plus} className="mr" />
         {__DARWIN__ ? 'New Worktree' : 'New worktree'}
       </Button>
     )
