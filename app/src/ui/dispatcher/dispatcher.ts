@@ -1184,6 +1184,16 @@ export class Dispatcher {
       .catch(e => this.postError(e))
   }
 
+  public async moveWorktree(
+    repository: Repository,
+    worktreePath: string,
+    newPath: string
+  ): Promise<void> {
+    await this.appStore
+      ._moveWorktree(repository, worktreePath, newPath)
+      .catch(e => this.postError(e))
+  }
+
   /**
    * Request deletion of a worktree, showing a confirmation dialog if the
    * user's preferences require it.

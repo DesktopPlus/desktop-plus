@@ -6,7 +6,6 @@ import { Dispatcher } from '../dispatcher'
 import { Dialog, DialogContent, DialogFooter } from '../dialog'
 import { TextBox } from '../lib/text-box'
 import { OkCancelButtonGroup } from '../dialog/ok-cancel-button-group'
-import { moveWorktree } from '../../lib/git/worktree'
 
 interface IRenameWorktreeDialogProps {
   readonly repository: Repository
@@ -45,14 +44,15 @@ export class RenameWorktreeDialog extends React.Component<
     this.setState({ renaming: true })
 
     try {
-      await moveWorktree(repository, worktreePath, newPath)
-    } catch (e) {
-      this.props.dispatcher.postError(e)
+      await this.props.dispatcher.moveWorktree(
+        repository,
+        worktreePath,
+        newPath
+      )
+    } finally {
       this.setState({ renaming: false })
-      return
     }
 
-    this.setState({ renaming: false })
     onDismissed()
   }
 

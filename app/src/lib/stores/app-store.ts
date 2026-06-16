@@ -255,6 +255,7 @@ import {
   IConfigValueOrigin,
   unstageAll,
   git,
+  moveWorktree,
 } from '../git'
 import {
   installGlobalLFSFilters,
@@ -6804,6 +6805,15 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
     await this._refreshWorktrees(repository)
     this.statsStore.increment('worktreeDeletedCount')
+  }
+
+  public async _moveWorktree(
+    repository: Repository,
+    worktreePath: string,
+    newPath: string
+  ): Promise<void> {
+    await moveWorktree(repository, worktreePath, newPath)
+    await this._refreshWorktrees(repository)
   }
 
   public _setWorktreeDropdownWidth(width: number): Promise<void> {
