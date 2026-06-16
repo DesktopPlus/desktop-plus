@@ -410,13 +410,14 @@ export async function getWorkingDirectoryDiff(
  * what changed relative to the last clean version — no conflict markers.
  *
  * When `content` is `'ours'` or `'theirs'`, the content is read from
- * the corresponding merge index stage (`:2:` or `:3:`). These always refer
- * to git's definition: `ours` = stage 2 (HEAD at merge time), `theirs` =
- * stage 3 (the commit being merged in). Note that during a rebase, git
- * considers the upstream branch as "ours" and the rebased commit as
- * "theirs" — the opposite of what the user might expect. The caller is
- * responsible for mapping user-facing labels (e.g. "Current branch") to
- * the correct git side.
+ * When `content` is `'ours'` or `'theirs'`, the content is read from
+ * the corresponding merge index stage (`git show :2:<path>` or
+ * `git show :3:<path>`). These always refer to git's definition:
+ * `ours` = stage 2 (HEAD at merge time), `theirs` = stage 3 (the commit
+ * being merged in). Note that during a rebase, git considers the upstream
+ * branch as "ours" and the rebased commit as "theirs" — the opposite of
+ * what the user might expect. The caller is responsible for mapping
+ * user-facing labels (e.g. "Current branch") to the correct git side.
  *
  * When `content` is any other string, it's used directly as the right
  * side of the diff (e.g. Copilot's resolved text).
@@ -442,8 +443,8 @@ export async function getResolutionDiff(
   content: string | 'ours' | 'theirs',
   hideWhitespaceInDiff: boolean = false
 ): Promise<IDiff> {
-  const stageMap: Record<string, string> = { ours: ':2', theirs: ':3' }
-  const stage = stageMap[content]
+  const stage =
+    content === 'ours' ? ':2' : content === 'theirs' ? ':3' : undefined
 
   let baseContent: string
   let targetContent: string
