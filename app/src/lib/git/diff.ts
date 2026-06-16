@@ -484,6 +484,117 @@ export async function getResolutionDiff(
 }
 
 /**
+ * The result of attempting to compute a diff for a specific merge stage.
+ *
+ * - `diff`: successfully computed diff
+ * - `missing-stage`: the requested stage (`:2:` or `:3:`) does not exist,
+ *   typically because the file was only added in the other branch
+ * - `error`: an unexpected error occurred
+ */
+export type StageDiffResult =
+  | { readonly kind: 'diff'; readonly diff: IDiff }
+  | { readonly kind: 'missing-stage'; readonly stage: ':2' | ':3' }
+  | { readonly kind: 'error' }
+
+/**
+ * Compute a diff showing the changes a specific merge stage introduces
+ * relative to the merge base (`:1:`).
+ *
+ * @param repository The repository with an active merge conflict
+ * @param filePath   Repo-relative path of the conflicted file
+ * @param stage      Which stage to compare — `:2` for ours (current branch)
+ *                   or `:3` for theirs (incoming branch)
+ * @param hideWhitespaceInDiff When true, passes `-w` to ignore whitespace
+ */
+export async function getStageDiff(
+  repository: Repository,
+  filePath: string,
+  stage: ':2' | ':3',
+  hideWhitespaceInDiff: boolean = false
+): Promise<StageDiffResult> {
+  // Read merge base (stage 1). If it doesn't exist (add/add conflict),
+  // use an empty string so the diff shows the full file as added.
+  let baseContent: string
+  try {
+    const buffer = await getBlobContents(repository, ':1', filePath)
+    baseContent = buffer.toString('utf-8')
+  } catch {
+    baseContent = ''
+  }
+
+  // Read the requested stage content. If it doesn't exist, the file
+  // is not present in that branch.
+  let stageContent: string
+  try {
+    const buffer = await getBlobContents(repository, stage, filePath)
+    stageContent = buffer.toString('utf-8')
+  } catch {
+    return { kind: 'missing-stage', stage }
+  }
+
+  const tempBase = getTempFilePath('stage-diff-base')
+  const tempStage = getTempFilePath('stage-diff-stage')
+
+  try {
+    await writeFile(tempBase, baseContent, 'utf8')
+    await writeFile(tempStage, stageContent, 'utf8')
+
+    const args = [
+      'diff',
+      ...(hideWhitespaceInDiff ? ['-w'] : []),
+      '--no-ext-diff',
+      '--patch-with-raw',
+      '-z',
+      '--no-color',
+      '--no-index',
+      '--',
+      tempBase,
+      tempStage,
+    ]
+
+    const { stdout } = await git(args, repository.path, 'getStageDiff', {
+      successExitCodes: new Set([0, 1]),
+      encoding: 'buffer',
+    })
+
+    if (!isValidBuffer(stdout)) {
+      return { kind: 'diff', diff: { kind: DiffType.Unrenderable } }
+    }
+
+    const diff = diffFromRawDiffOutput(stdout)
+
+    if (isDiffTooLarge(diff)) {
+      return {
+        kind: 'diff',
+        diff: {
+          kind: DiffType.LargeText,
+          text: diff.contents,
+          hunks: diff.hunks,
+          maxLineNumber: diff.maxLineNumber,
+          hasHiddenBidiChars: diff.hasHiddenBidiChars,
+        },
+      }
+    }
+
+    return {
+      kind: 'diff',
+      diff: {
+        kind: DiffType.Text,
+        text: diff.contents,
+        hunks: diff.hunks,
+        maxLineNumber: diff.maxLineNumber,
+        hasHiddenBidiChars: diff.hasHiddenBidiChars,
+      },
+    }
+  } catch {
+    return { kind: 'error' }
+  } finally {
+    await unlink(tempBase).catch(() => {})
+    await unlink(tempStage).catch(() => {})
+  }
+}
+
+/**
  * Render the diff for a list of files within the repository working directory.
  * The files will be compared against HEAD if it's tracked, if not it'll be
  * compared to an empty file meaning that all content in the file will be
