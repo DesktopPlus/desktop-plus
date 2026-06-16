@@ -64,8 +64,10 @@ import { isDotCom } from '../../lib/endpoint-capabilities'
 import { WorkingDirectoryFileChange } from '../../models/status'
 import {
   enableCommitMessageGeneration,
+  enableCopilotSdkCommitMessageGeneration,
   enableHooksEnvironment,
 } from '../../lib/feature-flag'
+import { getAccountForCommitMessageGeneration } from '../../lib/get-account-for-repository'
 import { AriaLiveContainer } from '../accessibility/aria-live-container'
 import { HookProgress } from '../../lib/git'
 import { assertNever } from '../../lib/fatal-error'
@@ -966,7 +968,9 @@ export class CommitMessage extends React.Component<
     e.preventDefault()
 
     if (this.props.isGeneratingCommitMessage) {
-      this.props.onCancelGenerateCommitMessage?.()
+      if (this.canCancelGenerateCommitMessage) {
+        this.props.onCancelGenerateCommitMessage?.()
+      }
       return
     }
 
@@ -1001,8 +1005,10 @@ export class CommitMessage extends React.Component<
 
     const noFilesSelected = filesSelected.length === 0
     const noChangesAvailable = !commitToAmend && noFilesSelected
+    const showCancelGenerateCommitMessage =
+      isGeneratingCommitMessage === true && this.canCancelGenerateCommitMessage
 
-    const ariaLabel = isGeneratingCommitMessage
+    const ariaLabel = showCancelGenerateCommitMessage
       ? 'Cancel generating commit details'
       : 'Generate commit message with Copilot' +
         (noChangesAvailable
@@ -1019,6 +1025,8 @@ export class CommitMessage extends React.Component<
           tooltip={ariaLabel}
           disabled={
             isCommitting === true ||
+            (isGeneratingCommitMessage === true &&
+              !showCancelGenerateCommitMessage) ||
             (!isGeneratingCommitMessage && noChangesAvailable)
           }
         >
@@ -1029,7 +1037,7 @@ export class CommitMessage extends React.Component<
           />
           <Octicon
             symbol={
-              isGeneratingCommitMessage
+              showCancelGenerateCommitMessage
                 ? octicons.squareCircle
                 : octicons.copilot
             }
@@ -1201,6 +1209,22 @@ export class CommitMessage extends React.Component<
     return (
       accounts.some(enableCommitMessageGeneration) &&
       onGenerateCommitMessage !== undefined
+    )
+  }
+
+  /**
+   * Whether an in-flight commit message generation can be cancelled.
+   */
+  private get canCancelGenerateCommitMessage() {
+    const account = getAccountForCommitMessageGeneration(
+      this.props.accounts,
+      this.props.repository
+    )
+
+    return (
+      account !== undefined &&
+      enableCopilotSdkCommitMessageGeneration(account) &&
+      this.props.onCancelGenerateCommitMessage !== undefined
     )
   }
 
