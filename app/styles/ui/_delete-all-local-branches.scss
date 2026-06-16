@@ -1,0 +1,14 @@
+#delete-all-local-branches {
+  .delete-all-local-branches-list {
+    max-height: 175px;
+    overflow-y: auto;
+    list-style: none;
+    margin: var(--spacing) 0;
+    padding: 0;
+
+    li {
+      padding-left: 0;
+      margin-bottom: var(--spacing-half);
+    }
+  }
+}

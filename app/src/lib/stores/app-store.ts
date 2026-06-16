@@ -5535,6 +5535,24 @@ export class AppStore extends TypedBaseStore<IAppState> {
     })
   }
 
+  public async _deleteLocalBranches(
+    repository: Repository,
+    branches: ReadonlyArray<Branch>
+  ): Promise<void> {
+    return this.withRefreshedGitHubRepository(repository, async repository => {
+      const gitStore = this.gitStoreCache.get(repository)
+
+      // Deleting a local branch is fast, so we can do it sequentially
+      for (const branch of branches) {
+        await gitStore.performFailableOperation(() =>
+          deleteLocalBranch(repository, branch.name)
+        )
+      }
+
+      return this._refreshRepository(repository)
+    })
+  }
+
   /**
    * Deletes the local branch. If the parameter `includeUpstream` is true, the
    * upstream branch will be deleted also.

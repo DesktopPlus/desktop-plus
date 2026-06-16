@@ -1016,6 +1016,17 @@ export class Dispatcher {
   }
 
   /**
+   * Delete several local branches in one operation. None of the branches may be
+   * currently checked out (in this or any other worktree).
+   */
+  public deleteLocalBranches(
+    repository: Repository,
+    branches: ReadonlyArray<Branch>
+  ): Promise<void> {
+    return this.appStore._deleteLocalBranches(repository, branches)
+  }
+
+  /**
    * Delete the remote branch.
    */
   public deleteRemoteBranch(

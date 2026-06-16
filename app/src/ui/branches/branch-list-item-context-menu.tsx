@@ -12,6 +12,7 @@ interface IBranchContextMenuConfig {
   onViewPullRequestOnGitHub?: () => void
   onSetAsDefaultBranch?: (branchName: string) => void
   onDeleteBranch?: (branchName: string) => void
+  onDeleteAllLocalBranches?: () => void
   onPullSingleBranch?: (branchName: string) => void
   onCheckoutInNewWorktree?: (branch: Branch) => void
 }
@@ -27,6 +28,7 @@ export function generateBranchContextMenuItems(
     onViewPullRequestOnGitHub,
     onSetAsDefaultBranch,
     onDeleteBranch,
+    onDeleteAllLocalBranches,
     onPullSingleBranch,
     onCheckoutInNewWorktree,
   } = config
@@ -89,6 +91,15 @@ export function generateBranchContextMenuItems(
     items.push({
       label: 'Delete…',
       action: () => onDeleteBranch(branch.name),
+    })
+  }
+
+  if (onDeleteAllLocalBranches !== undefined) {
+    items.push({
+      label: __DARWIN__
+        ? 'Delete All Local Branches…'
+        : 'Delete all local branches…',
+      action: () => onDeleteAllLocalBranches(),
     })
   }
 

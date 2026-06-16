@@ -13,6 +13,7 @@ import { TextBox } from '../lib/text-box'
 
 import {
   groupBranches,
+  isLocalOnlyBranch,
   IBranchListItem,
   BranchGroupIdentifier,
 } from './group-branches'
@@ -145,6 +146,13 @@ interface IBranchListProps {
   /** Optional: Callback for if delete context menu should exist */
   readonly onDeleteBranch?: (branchName: string) => void
 
+  /**
+   * Optional: Callback for if the "delete all local branches" context menu
+   * should exist. It is only shown when the right-clicked branch is local-only
+   * and the repository has at least three local-only branches.
+   */
+  readonly onDeleteAllLocalBranches?: () => void
+
   /** Optional: Callback to checkout a branch in a new worktree */
   readonly onCheckoutInNewWorktree?: (branch: Branch) => void
 
@@ -243,6 +251,7 @@ export class BranchList extends React.Component<IBranchListProps> {
     const {
       onRenameBranch,
       onDeleteBranch,
+      onDeleteAllLocalBranches,
       onCheckoutInNewWorktree,
       onSetAsDefaultBranch,
       onPullSingleBranch,
@@ -259,6 +268,15 @@ export class BranchList extends React.Component<IBranchListProps> {
 
     const { branch } = item
 
+    // Only offer "delete all local branches" when right-clicking a local-only
+    // branch and the repository has at least three local-only branches.
+    const localOnlyBranchCount =
+      this.props.allBranches.filter(isLocalOnlyBranch).length
+    const canDeleteAllLocalBranches =
+      onDeleteAllLocalBranches !== undefined &&
+      isLocalOnlyBranch(branch) &&
+      localOnlyBranchCount >= 3
+
     const items = generateBranchContextMenuItems({
       branch,
       repoType: this.props.repository.gitHubRepository?.type,
@@ -268,6 +286,9 @@ export class BranchList extends React.Component<IBranchListProps> {
           ? undefined
           : onSetAsDefaultBranch,
       onDeleteBranch,
+      onDeleteAllLocalBranches: canDeleteAllLocalBranches
+        ? onDeleteAllLocalBranches
+        : undefined,
       onPullSingleBranch,
       onCheckoutInNewWorktree,
     })

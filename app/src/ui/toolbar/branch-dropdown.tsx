@@ -27,6 +27,10 @@ import { TooltipTarget } from '../lib/tooltip'
 import { BranchType, Branch } from '../../models/branch'
 import { PopupType } from '../../models/popup'
 import { generateBranchContextMenuItems } from '../branches/branch-list-item-context-menu'
+import {
+  findWorktreeForBranch,
+  isLocalOnlyBranch,
+} from '../branches/group-branches'
 import { showContextualMenu } from '../../lib/menu-item'
 import { Emoji } from '../../lib/emoji'
 import { BranchSortOrder } from '../../models/branch-sort-order'
@@ -117,6 +121,7 @@ export class BranchDropdown extends React.Component<IBranchDropdownProps> {
         branchSortOrder={this.props.branchSortOrder}
         emoji={this.props.emoji}
         onDeleteBranch={this.onDeleteBranch}
+        onDeleteAllLocalBranches={this.onDeleteAllLocalBranches}
         onPullSingleBranch={this.onPullSingleBranch}
         onRenameBranch={this.onRenameBranch}
         onSetAsDefaultBranch={this.onSetAsDefaultBranch}
@@ -440,6 +445,28 @@ export class BranchDropdown extends React.Component<IBranchDropdownProps> {
       repository,
       branch,
       existsOnRemote: aheadBehind !== null,
+    })
+  }
+
+  private onDeleteAllLocalBranches = () => {
+    const { dispatcher, repository, repositoryState } = this.props
+    const { allBranches } = repositoryState.branchesState
+    const worktrees = repositoryState.worktrees
+
+    const branches = allBranches.filter(
+      branch =>
+        isLocalOnlyBranch(branch) &&
+        findWorktreeForBranch(branch.name, worktrees) === null
+    )
+
+    if (branches.length === 0) {
+      return
+    }
+
+    dispatcher.showPopup({
+      type: PopupType.DeleteAllLocalBranches,
+      repository,
+      branches,
     })
   }
 

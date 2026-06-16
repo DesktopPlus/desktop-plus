@@ -1,4 +1,4 @@
-import { Branch } from '../../models/branch'
+import { Branch, BranchType } from '../../models/branch'
 import { BranchSortOrder } from '../../models/branch-sort-order'
 import { WorktreeEntry } from '../../models/worktree'
 import { IFilterListGroup, IFilterListItem } from '../lib/filter-list'
@@ -14,10 +14,18 @@ export interface IBranchListItem extends IFilterListItem {
 }
 
 /**
+ * Whether a branch is local-only, i.e. a local branch that has either never
+ * been published to a remote or whose upstream has since been deleted.
+ */
+export function isLocalOnlyBranch(branch: Branch): boolean {
+  return branch.type === BranchType.Local && (!branch.upstream || branch.isGone)
+}
+
+/**
  * Finds the worktree where a given branch is currently checked out.
  * Returns null if the branch is not checked out in any worktree.
  */
-function findWorktreeForBranch(
+export function findWorktreeForBranch(
   branchName: string,
   worktrees: ReadonlyArray<WorktreeEntry>
 ): WorktreeEntry | null {
