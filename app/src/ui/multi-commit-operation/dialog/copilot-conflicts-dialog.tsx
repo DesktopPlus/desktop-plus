@@ -36,6 +36,9 @@ import { CopilotConflictsResolutionSummary } from './copilot-conflicts-resolutio
 import { PopupType } from '../../../models/popup'
 import { PreferencesTab } from '../../../models/preferences'
 import { MultiCommitOperationKind } from '../../../models/multi-commit-operation'
+import { TabBar, TabBarType } from '../../tab-bar'
+import { CopilotConflictsChanges } from './copilot-conflicts-changes'
+import { enableCopilotConflictResolutionChangesTab } from '../../../lib/feature-flag'
 
 /**
  * The resolution choice for a file in the Copilot conflicts dialog.
@@ -62,8 +65,14 @@ interface ICopilotConflictsDialogProps {
   readonly emoji: Map<string, Emoji>
 }
 
+enum CopilotConflictsTab {
+  Summary,
+  Changes,
+}
+
 interface ICopilotConflictsDialogState {
   readonly isContinuing: boolean
+  readonly selectedTab: CopilotConflictsTab
 }
 
 const CopilotConflictsDialogTitleId = 'Dialog_Copilot_Conflicts'
@@ -84,7 +93,10 @@ export class CopilotConflictsDialog extends React.Component<
 
   public constructor(props: ICopilotConflictsDialogProps) {
     super(props)
-    this.state = { isContinuing: false }
+    this.state = {
+      isContinuing: false,
+      selectedTab: CopilotConflictsTab.Summary,
+    }
   }
 
   private onBackToManual = () => {
@@ -401,9 +413,42 @@ export class CopilotConflictsDialog extends React.Component<
     )
   }
 
+  private onTabSelected = (index: number) => {
+    this.setState({ selectedTab: index })
+  }
+
+  private renderSummaryContent(
+    unmergedFiles: ReadonlyArray<WorkingDirectoryFileChange>
+  ): JSX.Element {
+    return (
+      <>
+        {this.renderResolutionSummary()}
+        {this.renderFileList(unmergedFiles)}
+      </>
+    )
+  }
+
+  private renderTabContent(
+    unmergedFiles: ReadonlyArray<WorkingDirectoryFileChange>
+  ): JSX.Element {
+    if (this.state.selectedTab === CopilotConflictsTab.Changes) {
+      const conflictedFiles = unmergedFiles.filter(f =>
+        isConflictedFile(f.status)
+      )
+      return (
+        <CopilotConflictsChanges
+          conflictedFiles={conflictedFiles}
+          copilotResolutions={this.props.copilotResolutions}
+        />
+      )
+    }
+
+    return this.renderSummaryContent(unmergedFiles)
+  }
+
   public render() {
     const { operationKind, workingDirectory, model } = this.props
-    const { isContinuing } = this.state
+    const { isContinuing, selectedTab } = this.state
 
     const unmergedFiles = getUnmergedFiles(workingDirectory)
     const operation = __DARWIN__ ? operationKind : operationKind.toLowerCase()
@@ -413,9 +458,17 @@ export class CopilotConflictsDialog extends React.Component<
         ? `${model.modelName} · ${formatReasoningEffort(model.reasoningEffort)}`
         : model.modelName
 
+    const showChangesTab = enableCopilotConflictResolutionChangesTab()
+
+    const dialogClassName =
+      showChangesTab && selectedTab === CopilotConflictsTab.Changes
+        ? 'copilot-conflicts-changes-active'
+        : undefined
+
     return (
       <Dialog
         id="copilot-conflicts-dialog"
+        className={dialogClassName}
         titleId={CopilotConflictsDialogTitleId}
         dismissDisabled={isContinuing}
         onDismissed={this.props.onDismissed}
@@ -443,8 +496,19 @@ export class CopilotConflictsDialog extends React.Component<
           </div>
         </DialogHeader>
         <DialogContent>
-          {this.renderResolutionSummary()}
-          {this.renderFileList(unmergedFiles)}
+          {showChangesTab && (
+            <TabBar
+              selectedIndex={selectedTab}
+              onTabClicked={this.onTabSelected}
+              type={TabBarType.Tabs}
+            >
+              <span>Summary</span>
+              <span>Changes</span>
+            </TabBar>
+          )}
+          {showChangesTab
+            ? this.renderTabContent(unmergedFiles)
+            : this.renderSummaryContent(unmergedFiles)}
         </DialogContent>
         <DialogFooter>
           <div className="copilot-conflicts-footer">

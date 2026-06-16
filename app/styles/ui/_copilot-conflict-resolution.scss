@@ -29,6 +29,23 @@
   max-width: calc(100vw - var(--spacing-double) * 4);
   max-height: calc(100vh - var(--spacing-double) * 4);
 
+  &.copilot-conflicts-changes-active {
+    width: 800px;
+  }
+
+  .tab-bar.tabs {
+    margin: calc(-1 * var(--spacing-double)) calc(-1 * var(--spacing-double)) var(--spacing) calc(-1 * var(--spacing-double));
+  }
+
+  .copilot-changes-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-double);
+    color: var(--text-secondary-color);
+  }
+
   .dialog-header {
     flex-shrink: 0;
     height: auto;
