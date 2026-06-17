@@ -4,28 +4,43 @@ import { AppFileStatusKind, CommittedFileChange } from '../../../models/status'
 import { IDiff, ImageDiffType } from '../../../models/diff'
 import { WorkingDirectoryFileChange } from '../../../models/status'
 import { IFileResolution } from '../../../lib/copilot-conflict-resolution'
+import { ManualConflictResolution } from '../../../models/manual-conflict-resolution'
 import { FileList } from '../../history/file-list'
-import { Diff } from '../../diff'
+import { SeamlessDiffSwitcher } from '../../diff/seamless-diff-switcher'
 import { DiffOptions } from '../../diff/diff-options'
 import { Repository } from '../../../models/repository'
 import { Dispatcher } from '../../dispatcher'
 import { openFile } from '../../lib/open-file'
 import { getResolutionDiff } from '../../../lib/git'
+import { Button } from '../../lib/button'
+import { Octicon } from '../../octicons'
+import * as octicons from '../../octicons/octicons.generated'
+import {
+  CopilotFileResolutionChoice,
+  getResolutionChoiceForFile,
+  resolutionChoices,
+} from './copilot-resolution-helpers'
 
 interface ICopilotConflictsChangesProps {
   readonly repository: Repository
   readonly dispatcher: Dispatcher
   readonly conflictedFiles: ReadonlyArray<WorkingDirectoryFileChange>
   readonly copilotResolutions: ReadonlyArray<IFileResolution> | null
+  readonly manualResolutions: Map<string, ManualConflictResolution>
+  readonly ourBranch: string | undefined
+  readonly theirBranch: string | undefined
+  readonly onResolutionDropdownClick: (path: string) => void
 }
 
 interface ICopilotConflictsChangesState {
   readonly selectedFile: CommittedFileChange | null
   readonly diff: IDiff | null
-  readonly isLoadingDiff: boolean
+  readonly noResolution: boolean
   readonly showSideBySideDiff: boolean
   readonly hideWhitespaceInDiff: boolean
   readonly imageDiffType: ImageDiffType
+  readonly isSubheaderExpanded: boolean
+  readonly isSubheaderOverflowed: boolean
 }
 
 /**
@@ -40,6 +55,7 @@ export class CopilotConflictsChanges extends React.Component<
 > {
   private diffRequestId = 0
   private mounted = false
+  private subheaderRef: HTMLDivElement | null = null
 
   public constructor(props: ICopilotConflictsChangesProps) {
     super(props)
@@ -48,10 +64,12 @@ export class CopilotConflictsChanges extends React.Component<
     this.state = {
       selectedFile: files.length > 0 ? files[0] : null,
       diff: null,
-      isLoadingDiff: false,
+      noResolution: false,
       showSideBySideDiff: false,
       hideWhitespaceInDiff: false,
       imageDiffType: ImageDiffType.TwoUp,
+      isSubheaderExpanded: false,
+      isSubheaderOverflowed: false,
     }
   }
 
@@ -60,6 +78,7 @@ export class CopilotConflictsChanges extends React.Component<
     if (this.state.selectedFile !== null) {
       this.loadDiffForFile(this.state.selectedFile)
     }
+    this.updateSubheaderOverflow()
   }
 
   public componentWillUnmount() {
@@ -72,16 +91,38 @@ export class CopilotConflictsChanges extends React.Component<
   ) {
     const { selectedFile, hideWhitespaceInDiff } = this.state
 
+    const prevSelectedPath = prevState.selectedFile?.path
+    const currentPath = selectedFile?.path
+
+    const prevChoice =
+      prevSelectedPath !== undefined
+        ? prevProps.manualResolutions.get(prevSelectedPath)
+        : undefined
+    const nextChoice =
+      currentPath !== undefined
+        ? this.props.manualResolutions.get(currentPath)
+        : undefined
+    const selectedResolutionChanged = prevChoice !== nextChoice
+
     if (
       selectedFile !== prevState.selectedFile ||
       hideWhitespaceInDiff !== prevState.hideWhitespaceInDiff ||
-      this.props.copilotResolutions !== prevProps.copilotResolutions
+      this.props.copilotResolutions !== prevProps.copilotResolutions ||
+      selectedResolutionChanged
     ) {
       if (selectedFile !== null) {
         this.loadDiffForFile(selectedFile)
       } else {
-        this.setState({ diff: null, isLoadingDiff: false })
+        this.setState({ diff: null })
       }
+    }
+
+    if (
+      selectedFile !== prevState.selectedFile ||
+      selectedResolutionChanged ||
+      this.props.copilotResolutions !== prevProps.copilotResolutions
+    ) {
+      this.updateSubheaderOverflow()
     }
   }
 
@@ -103,17 +144,43 @@ export class CopilotConflictsChanges extends React.Component<
 
   private async loadDiffForFile(file: CommittedFileChange) {
     const requestId = ++this.diffRequestId
+    const choice = getResolutionChoiceForFile(
+      file.path,
+      this.props.manualResolutions
+    )
+
+    if (choice === 'ours' || choice === 'theirs') {
+      this.setState({ diff: null, noResolution: false })
+      try {
+        const diff = await getResolutionDiff(
+          this.props.repository,
+          file.path,
+          { stage: choice },
+          this.state.hideWhitespaceInDiff
+        )
+
+        if (this.mounted && requestId === this.diffRequestId) {
+          this.setState({ diff })
+        }
+      } catch (e) {
+        log.error('Failed to compute resolution diff', e)
+        if (this.mounted && requestId === this.diffRequestId) {
+          this.setState({ diff: null })
+        }
+      }
+      return
+    }
 
     const resolution = this.props.copilotResolutions?.find(
       r => r.path === file.path
     )
 
     if (resolution === undefined) {
-      this.setState({ diff: null, isLoadingDiff: false })
+      this.setState({ diff: null, noResolution: true })
       return
     }
 
-    this.setState({ isLoadingDiff: true })
+    this.setState({ diff: null, noResolution: false })
 
     try {
       const diff = await getResolutionDiff(
@@ -124,18 +191,18 @@ export class CopilotConflictsChanges extends React.Component<
       )
 
       if (this.mounted && requestId === this.diffRequestId) {
-        this.setState({ diff, isLoadingDiff: false })
+        this.setState({ diff })
       }
     } catch (e) {
       log.error('Failed to compute resolution diff', e)
       if (this.mounted && requestId === this.diffRequestId) {
-        this.setState({ diff: null, isLoadingDiff: false })
+        this.setState({ diff: null })
       }
     }
   }
 
   private onSelectedFileChanged = (file: CommittedFileChange) => {
-    this.setState({ selectedFile: file })
+    this.setState({ selectedFile: file, isSubheaderExpanded: false })
   }
 
   private onShowSideBySideDiffChanged = (showSideBySideDiff: boolean) => {
@@ -166,19 +233,92 @@ export class CopilotConflictsChanges extends React.Component<
     }
   }
 
+  private onDropdownClick = () => {
+    const { selectedFile } = this.state
+    if (selectedFile !== null) {
+      this.props.onResolutionDropdownClick(selectedFile.path)
+    }
+  }
+
+  private onToggleSubheaderExpanded = () => {
+    this.setState(
+      prev => ({ isSubheaderExpanded: !prev.isSubheaderExpanded }),
+      () => {
+        if (!this.state.isSubheaderExpanded) {
+          requestAnimationFrame(() => this.updateSubheaderOverflow())
+        }
+      }
+    )
+  }
+
+  private onSubheaderRef = (ref: HTMLDivElement | null) => {
+    this.subheaderRef = ref
+  }
+
+  private updateSubheaderOverflow() {
+    if (this.state.isSubheaderExpanded) {
+      if (this.state.isSubheaderOverflowed) {
+        this.setState({ isSubheaderOverflowed: false })
+      }
+      return
+    }
+
+    const el = this.subheaderRef
+    if (el) {
+      this.setState({
+        isSubheaderOverflowed: el.scrollHeight > el.offsetHeight,
+      })
+    } else if (this.state.isSubheaderOverflowed) {
+      this.setState({ isSubheaderOverflowed: false })
+    }
+  }
+
+  private getSubheaderText(
+    choice: CopilotFileResolutionChoice,
+    path: string
+  ): string | undefined {
+    if (choice === 'ours') {
+      return `Using changes from ${this.props.ourBranch ?? 'current branch'}`
+    }
+    if (choice === 'theirs') {
+      return `Using changes from ${this.props.theirBranch ?? 'incoming branch'}`
+    }
+    const resolution = this.props.copilotResolutions?.find(r => r.path === path)
+    if (resolution === undefined) {
+      return 'No Copilot resolution available'
+    }
+    return resolution.reasoning ?? "Using Copilot's merged resolution"
+  }
+
   public render() {
     const files = this.getCommittedFiles()
     const {
       selectedFile,
       diff,
-      isLoadingDiff,
+      noResolution,
       showSideBySideDiff,
       hideWhitespaceInDiff,
     } = this.state
 
+    const choice =
+      selectedFile !== null
+        ? getResolutionChoiceForFile(
+            selectedFile.path,
+            this.props.manualResolutions
+          )
+        : 'copilot'
+    const { label: choiceLabel, icon: choiceIcon } = resolutionChoices[choice]
+    const subheaderText =
+      selectedFile !== null
+        ? this.getSubheaderText(choice, selectedFile.path)
+        : undefined
+
     return (
       <div className="copilot-changes-tab">
         <div className="copilot-changes-header">
+          <span className="copilot-changes-file-count">
+            {files.length} files changed
+          </span>
           <DiffOptions
             isInteractiveDiff={false}
             hideWhitespaceChanges={hideWhitespaceInDiff}
@@ -198,30 +338,81 @@ export class CopilotConflictsChanges extends React.Component<
               onRowDoubleClick={this.onRowDoubleClick}
             />
           </div>
-          {selectedFile !== null && isLoadingDiff && (
-            <div className="copilot-changes-loading">Loading diff&hellip;</div>
-          )}
-          {selectedFile !== null && !isLoadingDiff && diff !== null && (
-            <Diff
-              repository={this.props.repository}
-              readOnly={true}
-              file={selectedFile}
-              diff={diff}
-              fileContents={null}
-              imageDiffType={this.state.imageDiffType}
-              hideWhitespaceInDiff={hideWhitespaceInDiff}
-              showSideBySideDiff={showSideBySideDiff}
-              showDiffCheckMarks={false}
-              onOpenBinaryFile={this.onOpenBinaryFile}
-              onChangeImageDiffType={this.onChangeImageDiffType}
-              onHideWhitespaceInDiffChanged={this.onHideWhitespaceInDiffChanged}
-            />
-          )}
-          {selectedFile !== null && !isLoadingDiff && diff === null && (
-            <div className="copilot-changes-no-diff">
-              Diff preview is only available for files resolved by Copilot.
-            </div>
-          )}
+          <div className="copilot-changes-diff-area">
+            {selectedFile !== null && subheaderText !== undefined && (
+              <div className="copilot-changes-diff-header">
+                <div
+                  ref={this.onSubheaderRef}
+                  id="copilot-changes-diff-description"
+                  className={
+                    this.state.isSubheaderExpanded
+                      ? 'copilot-changes-diff-subheader expanded'
+                      : 'copilot-changes-diff-subheader'
+                  }
+                >
+                  {subheaderText}
+                </div>
+                <div className="copilot-changes-diff-header-actions">
+                  {(this.state.isSubheaderOverflowed ||
+                    this.state.isSubheaderExpanded) && (
+                    <Button
+                      className="copilot-changes-diff-subheader-toggle"
+                      onClick={this.onToggleSubheaderExpanded}
+                      tooltip={
+                        this.state.isSubheaderExpanded ? 'Collapse' : 'Expand'
+                      }
+                      ariaExpanded={this.state.isSubheaderExpanded}
+                      ariaLabel={
+                        this.state.isSubheaderExpanded
+                          ? 'Collapse description'
+                          : 'Expand description'
+                      }
+                      ariaControls="copilot-changes-diff-description"
+                    >
+                      <Octicon
+                        symbol={
+                          this.state.isSubheaderExpanded
+                            ? octicons.fold
+                            : octicons.unfold
+                        }
+                      />
+                    </Button>
+                  )}
+                  <Button
+                    className="copilot-resolution-dropdown"
+                    onClick={this.onDropdownClick}
+                    ariaLabel="Change resolution choice"
+                  >
+                    <Octicon symbol={choiceIcon} />
+                    {choiceLabel}
+                    <Octicon symbol={octicons.triangleDown} />
+                  </Button>
+                </div>
+              </div>
+            )}
+            {selectedFile !== null && !noResolution && (
+              <SeamlessDiffSwitcher
+                repository={this.props.repository}
+                readOnly={true}
+                file={selectedFile}
+                diff={diff}
+                imageDiffType={this.state.imageDiffType}
+                hideWhitespaceInDiff={hideWhitespaceInDiff}
+                showSideBySideDiff={showSideBySideDiff}
+                showDiffCheckMarks={false}
+                onOpenBinaryFile={this.onOpenBinaryFile}
+                onChangeImageDiffType={this.onChangeImageDiffType}
+                onHideWhitespaceInDiffChanged={
+                  this.onHideWhitespaceInDiffChanged
+                }
+              />
+            )}
+            {selectedFile !== null && noResolution && (
+              <div className="copilot-changes-no-diff">
+                No Copilot resolution available for this file.
+              </div>
+            )}
+          </div>
         </div>
       </div>
     )

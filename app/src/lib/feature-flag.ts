@@ -134,8 +134,3 @@ export const enableFormattingPreferences = () => true
 export function enableWorktreeSupport(): boolean {
   return enableBetaFeatures()
 }
-
-/** Should we show the Changes tab in the Copilot conflict resolution dialog? */
-export function enableCopilotConflictResolutionChangesTab(): boolean {
-  return enableDevelopmentFeatures()
-}
