@@ -13,6 +13,7 @@ import {
   isConflictWithMarkers,
 } from '../../../models/status'
 import { getUnmergedFiles, isConflictedFile } from '../../../lib/status'
+import { assertNever } from '../../../lib/fatal-error'
 import { ManualConflictResolution } from '../../../models/manual-conflict-resolution'
 import {
   IFileResolution,
@@ -23,7 +24,7 @@ import { formatReasoningEffort } from '../../../lib/stores/copilot-store'
 import { showContextualMenu, IMenuItem } from '../../../lib/menu-item'
 import { OkCancelButtonGroup } from '../../dialog/ok-cancel-button-group'
 import { Button } from '../../lib/button'
-import { Octicon, OcticonSymbol } from '../../octicons'
+import { Octicon } from '../../octicons'
 import * as octicons from '../../octicons/octicons.generated'
 import { PathText } from '../../lib/path-text'
 import {
@@ -33,15 +34,17 @@ import {
 import { openFile } from '../../lib/open-file'
 import { revealInFileManager } from '../../../lib/app-shell'
 import { CopilotConflictsResolutionSummary } from './copilot-conflicts-resolution-summary'
+import { PopupType } from '../../../models/popup'
+import { PreferencesTab } from '../../../models/preferences'
 import { MultiCommitOperationKind } from '../../../models/multi-commit-operation'
+import { TabBar, TabBarType } from '../../tab-bar'
+import { CopilotConflictsChanges } from './copilot-conflicts-changes'
 
-/**
- * The resolution choice for a file in the Copilot conflicts dialog.
- * - 'copilot': Use Copilot's suggestion
- * - 'ours': Use our side (current branch)
- * - 'theirs': Use their side (incoming branch)
- */
-type CopilotFileResolutionChoice = 'copilot' | 'ours' | 'theirs'
+import {
+  CopilotFileResolutionChoice,
+  getResolutionChoiceForFile,
+  resolutionChoices,
+} from './copilot-resolution-helpers'
 
 interface ICopilotConflictsDialogProps {
   readonly repository: Repository
@@ -60,8 +63,14 @@ interface ICopilotConflictsDialogProps {
   readonly emoji: Map<string, Emoji>
 }
 
+enum CopilotConflictsTab {
+  Summary,
+  Changes,
+}
+
 interface ICopilotConflictsDialogState {
   readonly isContinuing: boolean
+  readonly selectedTab: CopilotConflictsTab
 }
 
 const CopilotConflictsDialogTitleId = 'Dialog_Copilot_Conflicts'
@@ -82,7 +91,10 @@ export class CopilotConflictsDialog extends React.Component<
 
   public constructor(props: ICopilotConflictsDialogProps) {
     super(props)
-    this.state = { isContinuing: false }
+    this.state = {
+      isContinuing: false,
+      selectedTab: CopilotConflictsTab.Summary,
+    }
   }
 
   private onBackToManual = () => {
@@ -96,6 +108,13 @@ export class CopilotConflictsDialog extends React.Component<
       },
       false
     )
+  }
+
+  private onOpenCopilotSettings = () => {
+    this.props.dispatcher.showPopup({
+      type: PopupType.Preferences,
+      initialSelectedTab: PreferencesTab.Copilot,
+    })
   }
 
   private onContinue = async () => {
@@ -119,39 +138,10 @@ export class CopilotConflictsDialog extends React.Component<
   }
 
   private getResolutionForFile(path: string): CopilotFileResolutionChoice {
-    const manualResolution =
-      this.props.conflictState.manualResolutions.get(path)
-    if (manualResolution === ManualConflictResolution.ours) {
-      return 'ours'
-    }
-    if (manualResolution === ManualConflictResolution.theirs) {
-      return 'theirs'
-    }
-    return 'copilot'
-  }
-
-  private getResolutionLabel(choice: CopilotFileResolutionChoice): string {
-    switch (choice) {
-      case 'copilot':
-        return 'Copilot'
-      case 'ours':
-        return 'Current'
-      case 'theirs':
-        return 'Incoming'
-    }
-  }
-
-  private getResolutionIcon(
-    choice: CopilotFileResolutionChoice
-  ): OcticonSymbol {
-    switch (choice) {
-      case 'copilot':
-        return octicons.copilot
-      case 'ours':
-        return octicons.chevronLeft
-      case 'theirs':
-        return octicons.chevronRight
-    }
+    return getResolutionChoiceForFile(
+      path,
+      this.props.conflictState.manualResolutions
+    )
   }
 
   private onResolutionDropdownClick = (path: string) => {
@@ -298,8 +288,7 @@ export class CopilotConflictsDialog extends React.Component<
   private renderConflictedFile(file: WorkingDirectoryFileChange): JSX.Element {
     const resolution = this.getResolutionForPath(file.path)
     const choice = this.getResolutionForFile(file.path)
-    const choiceLabel = this.getResolutionLabel(choice)
-    const choiceIcon = this.getResolutionIcon(choice)
+    const { label: choiceLabel, icon: choiceIcon } = resolutionChoices[choice]
     const reasoning = resolution?.reasoning
 
     const reasoningText =
@@ -392,9 +381,55 @@ export class CopilotConflictsDialog extends React.Component<
     )
   }
 
+  private onTabSelected = (index: CopilotConflictsTab) => {
+    this.setState({ selectedTab: index })
+  }
+
+  private renderSummaryContent(
+    unmergedFiles: ReadonlyArray<WorkingDirectoryFileChange>
+  ): JSX.Element {
+    return (
+      <div className="copilot-conflicts-summary-content">
+        {this.renderResolutionSummary()}
+        {this.renderFileList(unmergedFiles)}
+      </div>
+    )
+  }
+
+  private renderTabContent(
+    unmergedFiles: ReadonlyArray<WorkingDirectoryFileChange>
+  ): JSX.Element {
+    switch (this.state.selectedTab) {
+      case CopilotConflictsTab.Changes: {
+        const conflictedFiles = unmergedFiles.filter(f =>
+          isConflictedFile(f.status)
+        )
+        return (
+          <CopilotConflictsChanges
+            repository={this.props.repository}
+            dispatcher={this.props.dispatcher}
+            conflictedFiles={conflictedFiles}
+            copilotResolutions={this.props.copilotResolutions}
+            manualResolutions={this.props.conflictState.manualResolutions}
+            ourBranch={this.props.conflictState.ourBranch}
+            theirBranch={this.props.conflictState.theirBranch}
+            onResolutionDropdownClick={this.onResolutionDropdownClick}
+          />
+        )
+      }
+      case CopilotConflictsTab.Summary:
+        return this.renderSummaryContent(unmergedFiles)
+      default:
+        return assertNever(
+          this.state.selectedTab,
+          `Unknown tab: ${this.state.selectedTab}`
+        )
+    }
+  }
+
   public render() {
     const { operationKind, workingDirectory, model } = this.props
-    const { isContinuing } = this.state
+    const { isContinuing, selectedTab } = this.state
 
     const unmergedFiles = getUnmergedFiles(workingDirectory)
     const operation = __DARWIN__ ? operationKind : operationKind.toLowerCase()
@@ -421,11 +456,28 @@ export class CopilotConflictsDialog extends React.Component<
           onCloseButtonClick={this.props.onDismissed}
           loading={isContinuing}
         >
-          <span className="copilot-conflicts-dialog-model">{modelLabel}</span>
+          <div className="copilot-conflicts-dialog-model-row">
+            <span className="copilot-conflicts-dialog-model">{modelLabel}</span>
+            <Button
+              className="copilot-conflicts-dialog-settings-button"
+              tooltip="Configure Copilot in app settings"
+              ariaLabel="Configure Copilot in app settings"
+              onClick={this.onOpenCopilotSettings}
+            >
+              <Octicon symbol={octicons.sliders} />
+            </Button>
+          </div>
         </DialogHeader>
         <DialogContent>
-          {this.renderResolutionSummary()}
-          {this.renderFileList(unmergedFiles)}
+          <TabBar
+            selectedIndex={selectedTab}
+            onTabClicked={this.onTabSelected}
+            type={TabBarType.Tabs}
+          >
+            <span>Summary</span>
+            <span>Changes</span>
+          </TabBar>
+          {this.renderTabContent(unmergedFiles)}
         </DialogContent>
         <DialogFooter>
           <div className="copilot-conflicts-footer">

@@ -12,6 +12,8 @@ interface IPopoverDropdownProps {
   readonly className?: string
   readonly contentTitle: string
   readonly buttonContent: JSX.Element | string
+  readonly buttonAriaLabel?: string
+  readonly decoration?: PopoverDecoration
   readonly label?: string
   /**
    * The class name to apply to the open button. This is useful for
@@ -35,6 +37,7 @@ export class PopoverDropdown extends React.Component<
 > {
   private invokeButtonRef: HTMLButtonElement | null = null
   private dropdownHeaderId: string | undefined = undefined
+  private dropdownContentId: string | undefined = undefined
   private openButtonId: string | undefined = undefined
 
   public constructor(props: IPopoverDropdownProps) {
@@ -50,6 +53,21 @@ export class PopoverDropdown extends React.Component<
       releaseUniqueId(this.dropdownHeaderId)
       this.dropdownHeaderId = undefined
     }
+
+    if (this.dropdownContentId) {
+      releaseUniqueId(this.dropdownContentId)
+      this.dropdownContentId = undefined
+    }
+
+    if (this.openButtonId) {
+      releaseUniqueId(this.openButtonId)
+      this.openButtonId = undefined
+    }
+  }
+
+  private getDropdownContentId() {
+    this.dropdownContentId ??= createUniqueId('popover-dropdown-content')
+    return this.dropdownContentId
   }
 
   private onInvokeButtonRef = (buttonRef: HTMLButtonElement | null) => {
@@ -69,8 +87,9 @@ export class PopoverDropdown extends React.Component<
       return
     }
 
-    const { contentTitle } = this.props
+    const { contentTitle, decoration = PopoverDecoration.Balloon } = this.props
     this.dropdownHeaderId ??= createUniqueId('popover-dropdown-header')
+    const dropdownContentId = this.getDropdownContentId()
 
     return (
       <Popover
@@ -78,7 +97,7 @@ export class PopoverDropdown extends React.Component<
         anchor={this.invokeButtonRef}
         anchorPosition={PopoverAnchorPosition.BottomLeft}
         maxHeight={maxPopoverContentHeight}
-        decoration={PopoverDecoration.Balloon}
+        decoration={decoration}
         onClickOutside={this.closePopover}
         ariaLabelledby={this.dropdownHeaderId}
       >
@@ -94,7 +113,9 @@ export class PopoverDropdown extends React.Component<
               <Octicon symbol={octicons.x} />
             </button>
           </div>
-          <div className="popover-dropdown-content">{this.props.children}</div>
+          <div id={dropdownContentId} className="popover-dropdown-content">
+            {this.props.children}
+          </div>
         </div>
       </Popover>
     )
@@ -104,6 +125,9 @@ export class PopoverDropdown extends React.Component<
     const { className, buttonContent, label } = this.props
     const cn = classNames('popover-dropdown-component', className)
     this.openButtonId ??= createUniqueId('popover-open-button')
+    const ariaControls = this.state.showPopover
+      ? this.getDropdownContentId()
+      : undefined
 
     return (
       <div className={cn}>
@@ -113,6 +137,10 @@ export class PopoverDropdown extends React.Component<
           onButtonRef={this.onInvokeButtonRef}
           id={this.openButtonId}
           className={this.props.openButtonClassName}
+          ariaExpanded={this.state.showPopover}
+          ariaHaspopup="dialog"
+          ariaControls={ariaControls}
+          ariaLabel={this.props.buttonAriaLabel}
         >
           <div className="button-content">{buttonContent}</div>
           <Octicon symbol={octicons.triangleDown} />

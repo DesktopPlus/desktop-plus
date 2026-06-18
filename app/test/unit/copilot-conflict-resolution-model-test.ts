@@ -1,12 +1,12 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert'
-import type { ModelInfo } from '@github/copilot-sdk'
+import type { Model } from '@github/copilot-sdk/dist/generated/rpc'
 import { getConflictResolutionModelDisplay } from '../../src/lib/copilot/conflict-resolution-model'
 import { encodeModelKey, IBYOKProvider } from '../../src/lib/copilot/byok'
 
 function makeModel(
-  overrides: Partial<ModelInfo> & Pick<ModelInfo, 'id' | 'name'>
-): ModelInfo {
+  overrides: Partial<Model> & Pick<Model, 'id' | 'name'>
+): Model {
   return {
     capabilities: {
       supports: { vision: false, reasoningEffort: false },

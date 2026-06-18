@@ -5,7 +5,7 @@
   "productName": "GitHub Desktop Plus",
   "bundleID": "com.polrivero.GitHubDesktopPlus",
   "companyName": "Pol Rivero",
-  "version": "3.5.13-beta1",
+  "version": "3.5.13-beta2",
   "main": "./main.js",
   "repository": {
     "type": "git",

@@ -58,6 +58,26 @@ export interface IRowRendererParams {
 
 export type ClickSource = IMouseClickSource | IKeyboardSource
 
+export type SectionListRowHeight =
+  | number
+  | ((info: { readonly index: RowIndexPath }) => number)
+
+/** Exported for testing. */
+export function getRowOffsetInSection(
+  rowHeight: SectionListRowHeight,
+  indexPath: RowIndexPath
+) {
+  if (typeof rowHeight === 'number') {
+    return indexPath.row * rowHeight
+  }
+
+  let offset = 0
+  for (let row = 0; row < indexPath.row; row++) {
+    offset += rowHeight({ index: { section: indexPath.section, row } })
+  }
+  return offset
+}
+
 interface ISectionListProps {
   /**
    * Mandatory callback for rendering the contents of a particular
@@ -101,7 +121,7 @@ interface ISectionListProps {
    * are of equal height, or, a function that, given a row index returns
    * the height of that particular row.
    */
-  readonly rowHeight: number | ((info: { index: RowIndexPath }) => number)
+  readonly rowHeight: SectionListRowHeight
 
   /**
    * Function that generates an ID for a given row. This will allow the
@@ -979,7 +999,10 @@ export class SectionList extends React.Component<
 
     const rowHeight = this.getHeightForRowAtIndexPath(indexPath)
     const sectionOffset = this.getSectionScrollOffset(indexPath.section)
-    const rowOffsetInSection = this.getRowOffsetInSection(indexPath)
+    const rowOffsetInSection = getRowOffsetInSection(
+      this.props.rowHeight,
+      indexPath
+    )
 
     const grid = ReactDOM.findDOMNode(this.rootGrid)
     if (!(grid instanceof HTMLElement)) {
@@ -1377,18 +1400,6 @@ export class SectionList extends React.Component<
         />
       )
     }
-
-  private getRowOffsetInSection(indexPath: RowIndexPath) {
-    if (typeof this.props.rowHeight === 'number') {
-      return indexPath.row * this.props.rowHeight
-    }
-
-    let offset = 0
-    for (let i = 0; i < indexPath.row; i++) {
-      offset += this.props.rowHeight({ index: indexPath })
-    }
-    return offset
-  }
 
   private getSectionHeight(section: number) {
     if (typeof this.props.rowHeight === 'number') {

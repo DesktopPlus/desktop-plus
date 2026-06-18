@@ -1,36 +1,52 @@
 import * as React from 'react'
-import { DialogContent } from '../dialog'
-import { Row } from '../lib/row'
-import { Select } from '../lib/select'
-import { Button } from '../lib/button'
-import { LinkButton } from '../lib/link-button'
-import { Octicon } from '../octicons'
-import * as octicons from '../octicons/octicons.generated'
-import { TabBar } from '../tab-bar'
-import type { ModelInfo } from '@github/copilot-sdk'
+import {
+  encodeModelKey,
+  isLocalBaseUrl,
+  parseModelKey,
+  type IBYOKProvider,
+} from '../../lib/copilot/byok'
+import { enableCopilotConflictResolution } from '../../lib/feature-flag'
+import { isGHES } from '../../lib/endpoint-capabilities'
 import {
   DefaultCopilotModel,
   DisabledCopilotModel,
   type CopilotFeature,
   type CopilotModelSelections,
 } from '../../lib/stores/copilot-store'
+import type { Account } from '../../models/account'
+import { DialogContent, DialogPreferredFocusClassName } from '../dialog'
+import { Button } from '../lib/button'
+import { CallToAction } from '../lib/call-to-action'
 import {
-  IBYOKProvider,
-  encodeModelKey,
-  isLocalBaseUrl,
-  parseModelKey,
-} from '../../lib/copilot/byok'
-import { enableCopilotConflictResolution } from '../../lib/feature-flag'
+  CopilotModelPicker,
+  getCopilotModelPickerSelectionInfo,
+  hasCopilotModelPickerItems,
+} from '../lib/copilot-model-picker'
+import { LinkButton } from '../lib/link-button'
+import { Checkbox, CheckboxValue } from '../lib/checkbox'
+import { Row } from '../lib/row'
+import { Octicon } from '../octicons'
+import * as octicons from '../octicons/octicons.generated'
+import { TabBar } from '../tab-bar'
+import { CopilotModelSelectionInfo } from './copilot-model-selection-info'
+import type { Model } from '@github/copilot-sdk/dist/generated/rpc'
 
 interface ICopilotPreferencesProps {
   readonly selectedCopilotModels: CopilotModelSelections
-  readonly copilotModels: ReadonlyArray<ModelInfo> | null
-  readonly copilotAvailable: boolean
+  readonly copilotModels: ReadonlyArray<Model> | null
+  readonly accounts: ReadonlyArray<Account>
   readonly byokProviders: ReadonlyArray<IBYOKProvider>
   readonly showBYOKSettings: boolean
+  readonly onSignIn: () => void
+  readonly onOpenCopilotPlans: () => void
+  readonly onOpenCopilotFeatureSettings: () => void
+  readonly alwaysUseCopilotForConflictResolution: boolean
   readonly onSelectedCopilotModelChanged: (
     feature: CopilotFeature,
     model: string | null
+  ) => void
+  readonly onAlwaysUseCopilotForConflictResolutionChanged: (
+    checked: boolean
   ) => void
   readonly onAddBYOKProvider: () => void
   readonly onEditBYOKProvider: (provider: IBYOKProvider) => void
@@ -41,6 +57,14 @@ interface ICopilotPreferencesState {
   readonly selectedTabIndex: number
 }
 
+type CopilotAccessState =
+  | 'signed-out'
+  | 'checking'
+  | 'no-license'
+  | 'desktop-disabled'
+  | 'enabled'
+
+const CopilotLicenseTypeNoAccess = 'NO_ACCESS'
 export class CopilotPreferences extends React.Component<
   ICopilotPreferencesProps,
   ICopilotPreferencesState
@@ -54,21 +78,19 @@ export class CopilotPreferences extends React.Component<
     this.setState({ selectedTabIndex: index })
   }
 
-  private onCommitMessageModelChanged = (
-    event: React.FormEvent<HTMLSelectElement>
-  ) => {
-    this.props.onSelectedCopilotModelChanged(
-      'commit-message-generation',
-      event.currentTarget.value
-    )
+  private onCommitMessageModelChanged = (model: string) => {
+    this.props.onSelectedCopilotModelChanged('commit-message-generation', model)
   }
 
-  private onConflictResolutionModelChanged = (
-    event: React.FormEvent<HTMLSelectElement>
+  private onConflictResolutionModelChanged = (model: string) => {
+    this.props.onSelectedCopilotModelChanged('conflict-resolution', model)
+  }
+
+  private onAlwaysUseCopilotForConflictResolutionChanged = (
+    event: React.FormEvent<HTMLInputElement>
   ) => {
-    this.props.onSelectedCopilotModelChanged(
-      'conflict-resolution',
-      event.currentTarget.value
+    this.props.onAlwaysUseCopilotForConflictResolutionChanged(
+      event.currentTarget.checked
     )
   }
 
@@ -81,7 +103,21 @@ export class CopilotPreferences extends React.Component<
     this.props.onDeleteBYOKProvider(provider)
 
   public render() {
-    const showBYOK = this.props.showBYOKSettings && this.props.copilotAvailable
+    const accessState = this.getCopilotAccessState()
+
+    if (accessState !== 'enabled') {
+      return (
+        <DialogContent className="copilot-tab">
+          <div className="copilot-tab-content">
+            <div className="copilot-section">
+              {this.renderAccessState(accessState)}
+            </div>
+          </div>
+        </DialogContent>
+      )
+    }
+
+    const showBYOK = this.props.showBYOKSettings
 
     if (!showBYOK) {
       return (
@@ -116,24 +152,111 @@ export class CopilotPreferences extends React.Component<
     return this.renderModelPicker()
   }
 
-  private renderModelPicker() {
-    if (!this.props.copilotAvailable) {
-      return (
-        <p>
-          Sign in to a GitHub.com account in the Accounts tab to configure
-          Copilot settings.
-        </p>
-      )
+  private getCopilotAccessState(): CopilotAccessState {
+    const accounts = this.props.accounts.filter(
+      account => !isGHES(account.endpoint)
+    )
+
+    if (accounts.length === 0) {
+      return 'signed-out'
     }
 
+    let hasCheckingAccount = false
+    let hasNoAccessAccount = false
+    let hasDesktopDisabledAccount = false
+
+    for (const account of accounts) {
+      if (
+        account.isCopilotDesktopEnabled === true &&
+        account.copilotLicenseType !== undefined &&
+        account.copilotLicenseType !== CopilotLicenseTypeNoAccess
+      ) {
+        return 'enabled'
+      }
+
+      if (
+        account.copilotLicenseType === undefined ||
+        account.isCopilotDesktopEnabled === undefined
+      ) {
+        hasCheckingAccount = true
+      } else if (account.copilotLicenseType === CopilotLicenseTypeNoAccess) {
+        hasNoAccessAccount = true
+      } else if (account.isCopilotDesktopEnabled === false) {
+        hasDesktopDisabledAccount = true
+      }
+    }
+
+    if (hasCheckingAccount) {
+      return 'checking'
+    }
+
+    if (hasDesktopDisabledAccount) {
+      return 'desktop-disabled'
+    }
+
+    if (hasNoAccessAccount) {
+      return 'no-license'
+    }
+
+    return 'checking'
+  }
+
+  private renderAccessState(accessState: CopilotAccessState): JSX.Element {
+    switch (accessState) {
+      case 'signed-out':
+        return this.renderAccessCallToAction(
+          'Sign in to an account with a Copilot license to configure Copilot settings.',
+          'Sign In',
+          this.props.onSignIn,
+          DialogPreferredFocusClassName
+        )
+      case 'checking':
+        return <p>Checking Copilot access…</p>
+      case 'no-license':
+        return this.renderAccessCallToAction(
+          'Copilot features in GitHub Desktop require a GitHub Copilot license.',
+          'View Copilot plans',
+          this.props.onOpenCopilotPlans
+        )
+      case 'desktop-disabled':
+        return this.renderAccessCallToAction(
+          'A Copilot license is available for your account, but "Copilot in GitHub Desktop" is disabled in your Copilot feature settings.',
+          'Open Copilot feature settings',
+          this.props.onOpenCopilotFeatureSettings
+        )
+      case 'enabled':
+        return this.renderModelPicker()
+    }
+  }
+
+  private renderAccessCallToAction(
+    message: string,
+    actionTitle: string,
+    onAction: () => void,
+    buttonClassName?: string
+  ): JSX.Element {
+    return (
+      <div className="copilot-access-call-to-action">
+        <CallToAction
+          actionTitle={actionTitle}
+          onAction={onAction}
+          buttonClassName={buttonClassName}
+        >
+          <div>{message}</div>
+        </CallToAction>
+      </div>
+    )
+  }
+
+  private renderModelPicker() {
     const { copilotModels, byokProviders } = this.props
 
     if (copilotModels === null) {
       return <p>Loading available models…</p>
     }
 
-    if (copilotModels.length === 0 && byokProviders.length === 0) {
-      return <p>No models available. Check your Copilot subscription.</p>
+    if (!hasCopilotModelPickerItems(copilotModels, byokProviders)) {
+      return <p>No Copilot models available.</p>
     }
 
     return (
@@ -160,22 +283,41 @@ export class CopilotPreferences extends React.Component<
             Learn more about generating commit messages.
           </LinkButton>
         </p>
-        {enableCopilotConflictResolution() &&
-          this.renderFeatureModelPicker(
-            copilotModels,
-            'conflict-resolution',
-            __DARWIN__ ? 'Conflict Resolution' : 'Conflict resolution',
-            this.onConflictResolutionModelChanged
-          )}
+        {enableCopilotConflictResolution() && (
+          <>
+            {this.renderFeatureModelPicker(
+              copilotModels,
+              'conflict-resolution',
+              __DARWIN__ ? 'Conflict Resolution' : 'Conflict resolution',
+              this.onConflictResolutionModelChanged
+            )}
+            <p className="settings-description">
+              Model changes apply to future conflict resolutions.
+            </p>
+            <Checkbox
+              label={
+                __DARWIN__
+                  ? 'Always Use Copilot When Conflicts Are Detected'
+                  : 'Always use Copilot when conflicts are detected'
+              }
+              value={
+                this.props.alwaysUseCopilotForConflictResolution
+                  ? CheckboxValue.On
+                  : CheckboxValue.Off
+              }
+              onChange={this.onAlwaysUseCopilotForConflictResolutionChanged}
+            />
+          </>
+        )}
       </>
     )
   }
 
   private renderFeatureModelPicker(
-    copilotModels: ReadonlyArray<ModelInfo>,
+    copilotModels: ReadonlyArray<Model>,
     feature: CopilotFeature,
     label: string,
-    onChange: (event: React.FormEvent<HTMLSelectElement>) => void
+    onChange: (model: string) => void
   ): JSX.Element {
     const { byokProviders, selectedCopilotModels } = this.props
 
@@ -185,44 +327,32 @@ export class CopilotPreferences extends React.Component<
       byokProviders,
       rawSelection
     )
+    const selectionInfo = getCopilotModelPickerSelectionInfo(
+      copilotModels,
+      value
+    )
 
     return (
-      <Select label={label} value={value} onChange={onChange}>
-        <option value={DisabledCopilotModel}>None (hide Copilot button)</option>
-        {copilotModels.length > 0 && (
-          <optgroup label="GitHub Copilot">
-            {copilotModels.map(m => (
-              <option
-                key={m.id}
-                value={encodeModelKey({ kind: 'copilot', modelId: m.id })}
-              >
-                {m.id === DefaultCopilotModel ? `${m.name} (default)` : m.name}
-              </option>
-            ))}
-          </optgroup>
+      <>
+        <CopilotModelPicker
+          label={label}
+          copilotModels={copilotModels}
+          byokProviders={byokProviders}
+          value={value}
+          onChange={onChange}
+        />
+        {selectionInfo === null ? null : (
+          <CopilotModelSelectionInfo
+            feature={feature}
+            selectionInfo={selectionInfo}
+          />
         )}
-        {byokProviders.map(p => (
-          <optgroup key={p.id} label={p.name}>
-            {p.models.map(m => (
-              <option
-                key={m.id}
-                value={encodeModelKey({
-                  kind: 'byok',
-                  providerId: p.id,
-                  modelId: m.id,
-                })}
-              >
-                {m.name}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </Select>
+      </>
     )
   }
 
   private resolveSelectionValue(
-    copilotModels: ReadonlyArray<ModelInfo>,
+    copilotModels: ReadonlyArray<Model>,
     byokProviders: ReadonlyArray<IBYOKProvider>,
     raw: string | null
   ): string {
@@ -249,7 +379,7 @@ export class CopilotPreferences extends React.Component<
   }
 
   private getFirstSelectableModelValue(
-    copilotModels: ReadonlyArray<ModelInfo>,
+    copilotModels: ReadonlyArray<Model>,
     byokProviders: ReadonlyArray<IBYOKProvider>
   ): string {
     if (copilotModels.length === 0 && byokProviders.length === 0) {
@@ -274,7 +404,13 @@ export class CopilotPreferences extends React.Component<
       return encodeModelKey({ kind: 'copilot', modelId: firstCopilotModel.id })
     }
 
-    const firstProvider = byokProviders[0]
+    const firstProvider = byokProviders.find(provider => provider.models[0])
+
+    if (firstProvider === undefined) {
+      // This should not happen because we check for selectable models earlier.
+      throw new Error('No models available')
+    }
+
     const firstByokModel = firstProvider.models[0]
     return encodeModelKey({
       kind: 'byok',

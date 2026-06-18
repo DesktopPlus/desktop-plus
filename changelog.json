@@ -1,5 +1,11 @@
 {
   "releases": {
+    "3.5.13-beta2": [
+      "[Added] Add 'Always use Copilot when conflicts are detected' setting and a nudge dialog that appears after five manual uses to encourage enabling it - #22285",
+      "[Added] Add the Copilot conflict resolution Changes tab, allowing users to see a diff of Copilot's suggested resolution - #22333",
+      "[Added] Allow users to stop an ongoing request to generate a commit message with Copilot - #22324. Thanks @say25!",
+      "[Fixed] Fix Warp terminal detection on Windows to support the new Warp registry path with fallback to the legacy path - #22264. Thanks @Cocodrulo!"
+    ],
     "3.5.13-beta1": [
       "[New] Resolve merge conflicts with Copilot - #22265",
       "[New] Git worktree support for managing multiple working directories of the same repository - #22102",

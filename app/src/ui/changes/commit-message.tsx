@@ -71,8 +71,10 @@ import { isDotCom } from '../../lib/endpoint-capabilities'
 import { WorkingDirectoryFileChange } from '../../models/status'
 import {
   enableCommitMessageGeneration,
+  enableCopilotSdkCommitMessageGeneration,
   enableHooksEnvironment,
 } from '../../lib/feature-flag'
+import { getAccountForCommitMessageGeneration } from '../../lib/get-account-for-repository'
 import { AriaLiveContainer } from '../accessibility/aria-live-container'
 import { TooltippedContent } from '../lib/tooltipped-content'
 import { showItemInFolder } from '../main-process-proxy'
@@ -239,6 +241,8 @@ interface ICommitMessageProps {
     filesSelected: ReadonlyArray<WorkingDirectoryFileChange>,
     mustOverrideExistingMessage: boolean
   ) => void
+
+  readonly onCancelGenerateCommitMessage?: () => void
 
   /**
    * Called when the component has given the commit message focus due to
@@ -1118,6 +1122,14 @@ export class CommitMessage extends React.Component<
     e: React.MouseEvent<HTMLButtonElement>
   ) => {
     e.preventDefault()
+
+    if (this.props.isGeneratingCommitMessage) {
+      if (this.canCancelGenerateCommitMessage) {
+        this.props.onCancelGenerateCommitMessage?.()
+      }
+      return
+    }
+
     const { commitMessage } = this.state
 
     this.props.onGenerateCommitMessage?.(
@@ -1150,12 +1162,18 @@ export class CommitMessage extends React.Component<
     const noFilesSelected = filesSelected.length === 0
     const noChangesAvailable = !commitToAmend && noFilesSelected
 
-    const ariaLabel = isGeneratingCommitMessage
-      ? 'Generating commit details…'
-      : 'Generate commit message with Copilot' +
-        (noChangesAvailable
-          ? '. Files must be selected to generate a commit message.'
-          : '')
+    let ariaLabel = 'Generate commit message with Copilot'
+    const canCancelGenerateCommitMessage = this.canCancelGenerateCommitMessage
+    const showCancelGenerateCommitMessage =
+      isGeneratingCommitMessage === true && canCancelGenerateCommitMessage
+
+    if (!isGeneratingCommitMessage && noChangesAvailable) {
+      ariaLabel += '. Files must be selected to generate a commit message.'
+    } else if (showCancelGenerateCommitMessage) {
+      ariaLabel = 'Cancel generating commit details'
+    } else if (isGeneratingCommitMessage) {
+      ariaLabel = 'Generating commit details…'
+    }
 
     return (
       <>
@@ -1167,8 +1185,9 @@ export class CommitMessage extends React.Component<
           tooltip={ariaLabel}
           disabled={
             isCommitting === true ||
-            isGeneratingCommitMessage ||
-            noChangesAvailable
+            (isGeneratingCommitMessage === true &&
+              !canCancelGenerateCommitMessage) ||
+            (!isGeneratingCommitMessage && noChangesAvailable)
           }
         >
           <AriaLiveContainer
@@ -1176,7 +1195,13 @@ export class CommitMessage extends React.Component<
               isGeneratingCommitMessage ? 'Generating commit details…' : ''
             }
           />
-          <Octicon symbol={octicons.copilot} />
+          <Octicon
+            symbol={
+              showCancelGenerateCommitMessage
+                ? octicons.squareCircle
+                : octicons.copilot
+            }
+          />
           {shouldShowGenerateCommitMessageCallOut && (
             <span className="call-to-action-bubble">New</span>
           )}
@@ -1344,6 +1369,22 @@ export class CommitMessage extends React.Component<
     return (
       accounts.some(enableCommitMessageGeneration) &&
       onGenerateCommitMessage !== undefined
+    )
+  }
+
+  /**
+   * Whether an in-flight commit message generation can be cancelled.
+   */
+  private get canCancelGenerateCommitMessage() {
+    const account = getAccountForCommitMessageGeneration(
+      this.props.accounts,
+      this.props.repository
+    )
+
+    return (
+      account !== undefined &&
+      enableCopilotSdkCommitMessageGeneration(account) &&
+      this.props.onCancelGenerateCommitMessage !== undefined
     )
   }
 
