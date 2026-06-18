@@ -54,7 +54,7 @@ interface IBranchesContainerProps {
   readonly onRenameBranch: (branchName: string) => void
   readonly onSetAsDefaultBranch: (branchName: string) => void
   readonly onDeleteBranch: (branchName: string) => void
-  readonly onDeleteAllLocalBranches: () => void
+  readonly onDeleteUnusedLocalBranches: () => void
   readonly onCheckoutInNewWorktree?: (branch: Branch) => void
 
   /** Optional callback to checkout a PR in a new worktree */
@@ -299,7 +299,7 @@ export class BranchesContainer extends React.Component<
             onRenameBranch={this.props.onRenameBranch}
             onSetAsDefaultBranch={this.props.onSetAsDefaultBranch}
             onDeleteBranch={this.props.onDeleteBranch}
-            onDeleteAllLocalBranches={this.props.onDeleteAllLocalBranches}
+            onDeleteUnusedLocalBranches={this.props.onDeleteUnusedLocalBranches}
             onPullSingleBranch={this.props.onPullSingleBranch}
             onCheckoutInNewWorktree={
               enableWorktreeSupport()

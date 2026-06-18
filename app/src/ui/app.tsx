@@ -51,7 +51,7 @@ import {
   CantDeleteCurrentBranch,
   CantDeleteCurrentBranchUncommittedChanges,
   DeleteBranch,
-  DeleteAllLocalBranches,
+  DeleteUnusedLocalBranches,
   DeleteRemoteBranch,
 } from './delete-branch'
 import { CantDeleteMainBranch } from './delete-branch/cant-delete-main-branch'
@@ -1742,10 +1742,10 @@ export class App extends React.Component<IAppProps, IAppState> {
             onDeleted={this.onBranchDeleted}
           />
         )
-      case PopupType.DeleteAllLocalBranches:
+      case PopupType.DeleteUnusedLocalBranches:
         return (
-          <DeleteAllLocalBranches
-            key="delete-all-local-branches"
+          <DeleteUnusedLocalBranches
+            key="delete-unused-local-branches"
             dispatcher={this.props.dispatcher}
             repository={popup.repository}
             branches={popup.branches}

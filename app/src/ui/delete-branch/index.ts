@@ -1,5 +1,5 @@
 export { DeleteBranch } from './delete-branch-dialog'
-export { DeleteAllLocalBranches } from './delete-all-local-branches-dialog'
+export { DeleteUnusedLocalBranches } from './delete-unused-local-branches-dialog'
 export { DeleteRemoteBranch } from './delete-remote-branch-dialog'
 export { CantDeleteCurrentBranch } from './cant-delete-current-branch-dialog'
 export { CantDeleteCurrentBranchUncommittedChanges } from './cant-delete-current-branch-uncommitted-changes-dialog'

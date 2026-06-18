@@ -147,11 +147,11 @@ interface IBranchListProps {
   readonly onDeleteBranch?: (branchName: string) => void
 
   /**
-   * Optional: Callback for if the "delete all local branches" context menu
+   * Optional: Callback for if the "delete unused local branches" context menu
    * should exist. It is only shown when the right-clicked branch is local-only
    * and the repository has at least three local-only branches.
    */
-  readonly onDeleteAllLocalBranches?: () => void
+  readonly onDeleteUnusedLocalBranches?: () => void
 
   /** Optional: Callback to checkout a branch in a new worktree */
   readonly onCheckoutInNewWorktree?: (branch: Branch) => void
@@ -251,7 +251,7 @@ export class BranchList extends React.Component<IBranchListProps> {
     const {
       onRenameBranch,
       onDeleteBranch,
-      onDeleteAllLocalBranches,
+      onDeleteUnusedLocalBranches: onDeleteUnusedLocalBranches,
       onCheckoutInNewWorktree,
       onSetAsDefaultBranch,
       onPullSingleBranch,
@@ -268,12 +268,12 @@ export class BranchList extends React.Component<IBranchListProps> {
 
     const { branch } = item
 
-    // Only offer "delete all local branches" when right-clicking a local-only
+    // Only offer "delete unused local branches" when right-clicking a local-only
     // branch and the repository has at least three local-only branches.
     const localOnlyBranchCount =
       this.props.allBranches.filter(isLocalOnlyBranch).length
-    const canDeleteAllLocalBranches =
-      onDeleteAllLocalBranches !== undefined &&
+    const canDeleteUnusedLocalBranches =
+      onDeleteUnusedLocalBranches !== undefined &&
       isLocalOnlyBranch(branch) &&
       localOnlyBranchCount >= 3
 
@@ -286,8 +286,8 @@ export class BranchList extends React.Component<IBranchListProps> {
           ? undefined
           : onSetAsDefaultBranch,
       onDeleteBranch,
-      onDeleteAllLocalBranches: canDeleteAllLocalBranches
-        ? onDeleteAllLocalBranches
+      onDeleteUnusedLocalBranches: canDeleteUnusedLocalBranches
+        ? onDeleteUnusedLocalBranches
         : undefined,
       onPullSingleBranch,
       onCheckoutInNewWorktree,

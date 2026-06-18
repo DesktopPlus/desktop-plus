@@ -32,7 +32,7 @@ import { WorktreeEntry } from './worktree'
 export enum PopupType {
   RenameBranch = 'RenameBranch',
   DeleteBranch = 'DeleteBranch',
-  DeleteAllLocalBranches = 'DeleteAllLocalBranches',
+  DeleteUnusedLocalBranches = 'DeleteUnusedLocalBranches',
   DeleteRemoteBranch = 'DeleteRemoteBranch',
   ConfirmDiscardChanges = 'ConfirmDiscardChanges',
   Preferences = 'Preferences',
@@ -160,7 +160,7 @@ export type PopupDetail =
       existsOnRemote: boolean
     }
   | {
-      type: PopupType.DeleteAllLocalBranches
+      type: PopupType.DeleteUnusedLocalBranches
       repository: Repository
       branches: ReadonlyArray<Branch>
     }

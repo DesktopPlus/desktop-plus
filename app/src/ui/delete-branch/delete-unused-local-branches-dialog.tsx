@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogFooter } from '../dialog'
 import { Ref } from '../lib/ref'
 import { OkCancelButtonGroup } from '../dialog/ok-cancel-button-group'
 
-interface IDeleteAllLocalBranchesProps {
+interface IDeleteUnusedLocalBranchesProps {
   readonly dispatcher: Dispatcher
   readonly repository: Repository
   readonly branches: ReadonlyArray<Branch>
@@ -15,15 +15,15 @@ interface IDeleteAllLocalBranchesProps {
   readonly onDeleted: (repository: Repository) => void
 }
 
-interface IDeleteAllLocalBranchesState {
+interface IDeleteUnusedLocalBranchesState {
   readonly isDeleting: boolean
 }
 
-export class DeleteAllLocalBranches extends React.Component<
-  IDeleteAllLocalBranchesProps,
-  IDeleteAllLocalBranchesState
+export class DeleteUnusedLocalBranches extends React.Component<
+  IDeleteUnusedLocalBranchesProps,
+  IDeleteUnusedLocalBranchesState
 > {
-  public constructor(props: IDeleteAllLocalBranchesProps) {
+  public constructor(props: IDeleteUnusedLocalBranchesProps) {
     super(props)
 
     this.state = {
@@ -36,9 +36,11 @@ export class DeleteAllLocalBranches extends React.Component<
 
     return (
       <Dialog
-        id="delete-all-local-branches"
+        id="delete-unused-local-branches"
         title={
-          __DARWIN__ ? 'Delete All Local Branches' : 'Delete all local branches'
+          __DARWIN__
+            ? 'Delete Unused Local Branches'
+            : 'Delete unused local branches'
         }
         type="warning"
         onSubmit={this.deleteBranches}
@@ -46,15 +48,15 @@ export class DeleteAllLocalBranches extends React.Component<
         disabled={this.state.isDeleting}
         loading={this.state.isDeleting}
         role="alertdialog"
-        ariaDescribedBy="delete-all-local-branches-message"
+        ariaDescribedBy="delete-unused-local-branches-message"
       >
         <DialogContent>
-          <div id="delete-all-local-branches-message">
+          <div id="delete-unused-local-branches-message">
             <p>
               Delete the following {count}{' '}
               {count === 1 ? 'local branch' : 'local branches'}?
             </p>
-            <ul className="delete-all-local-branches-list">
+            <ul className="delete-unused-local-branches-list">
               {this.props.branches.map(branch => (
                 <li key={branch.name}>
                   <Ref>{branch.name}</Ref>

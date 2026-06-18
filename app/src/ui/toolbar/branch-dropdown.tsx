@@ -121,7 +121,7 @@ export class BranchDropdown extends React.Component<IBranchDropdownProps> {
         branchSortOrder={this.props.branchSortOrder}
         emoji={this.props.emoji}
         onDeleteBranch={this.onDeleteBranch}
-        onDeleteAllLocalBranches={this.onDeleteAllLocalBranches}
+        onDeleteUnusedLocalBranches={this.onDeleteUnusedLocalBranches}
         onPullSingleBranch={this.onPullSingleBranch}
         onRenameBranch={this.onRenameBranch}
         onSetAsDefaultBranch={this.onSetAsDefaultBranch}
@@ -448,7 +448,7 @@ export class BranchDropdown extends React.Component<IBranchDropdownProps> {
     })
   }
 
-  private onDeleteAllLocalBranches = () => {
+  private onDeleteUnusedLocalBranches = () => {
     const { dispatcher, repository, repositoryState } = this.props
     const { allBranches } = repositoryState.branchesState
     const worktrees = repositoryState.worktrees
@@ -464,7 +464,7 @@ export class BranchDropdown extends React.Component<IBranchDropdownProps> {
     }
 
     dispatcher.showPopup({
-      type: PopupType.DeleteAllLocalBranches,
+      type: PopupType.DeleteUnusedLocalBranches,
       repository,
       branches,
     })
