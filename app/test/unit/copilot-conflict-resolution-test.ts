@@ -364,8 +364,6 @@ describe('parseCopilotConflictResolution', () => {
 })
 
 // ---------------------------------------------------------------------------
-// extractSymbols
-// ---------------------------------------------------------------------------
 // reassembleResolvedFile
 // ---------------------------------------------------------------------------
 
@@ -492,6 +490,37 @@ describe('reassembleResolvedFile', () => {
   it('preserves file with no conflicts unchanged', () => {
     const raw = 'line 1\nline 2\nline 3'
     const result = reassembleResolvedFile(raw, [])
+    assert.equal(result, raw)
+  })
+
+  it('treats malformed markers (missing separator) as regular content', () => {
+    const raw = [
+      'line 1',
+      '<<<<<<< HEAD',
+      'some content',
+      '>>>>>>> feature',
+      'line 2',
+    ].join('\n')
+
+    // No ======= separator → not a valid conflict block, copy through
+    const result = reassembleResolvedFile(raw, [])
+
+    assert.equal(result, raw)
+  })
+
+  it('treats unclosed markers (missing >>>>>>>) as regular content', () => {
+    const raw = [
+      'line 1',
+      '<<<<<<< HEAD',
+      'some content',
+      '=======',
+      'other content',
+      'line 2',
+    ].join('\n')
+
+    // No >>>>>>> closing → not a valid conflict block, copy through
+    const result = reassembleResolvedFile(raw, [])
+
     assert.equal(result, raw)
   })
 })

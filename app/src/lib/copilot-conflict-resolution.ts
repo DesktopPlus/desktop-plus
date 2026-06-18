@@ -464,6 +464,7 @@ export function validateResolutionPaths(
 
 // Conflict markers used by reassembleResolvedFile to locate marker blocks.
 const reassemblyOursMarker = /^<{7}(?:\s|$)/
+const reassemblySeparatorMarker = /^={7}$/
 const reassemblyTheirsMarker = /^>{7}(?:\s|$)/
 
 /**
@@ -472,10 +473,16 @@ const reassemblyTheirsMarker = /^>{7}(?:\s|$)/
  *
  * Walks the original file line-by-line. Non-conflicted lines are copied
  * through verbatim. Each conflict marker block (`<<<<<<<` through
- * `>>>>>>>`) is replaced with the corresponding entry from
- * `hunkResolutions` (matched by order, not by line number). This
- * guarantees that all non-conflicted code is preserved exactly, and the
- * model's output is only responsible for the small resolved sections.
+ * `>>>>>>>`, with a `=======` separator in between) is replaced with the
+ * corresponding entry from `hunkResolutions` (matched by order, not by
+ * line number). This guarantees that all non-conflicted code is preserved
+ * exactly, and the model's output is only responsible for the small
+ * resolved sections.
+ *
+ * A `<<<<<<<` line that is not followed by both a `=======` separator and
+ * a closing `>>>>>>>` before EOF is treated as regular file content (not a
+ * conflict block) and copied through unchanged to avoid data loss from
+ * malformed or stray markers.
  *
  * @param rawContent - The full file content on disk, including conflict markers
  * @param hunkResolutions - Per-hunk resolved content, in the order they appear in the file
@@ -493,14 +500,28 @@ export function reassembleResolvedFile(
 
   while (i < lines.length) {
     if (reassemblyOursMarker.test(lines[i])) {
-      // Skip through the entire conflict marker block
-      i++
-      while (i < lines.length && !reassemblyTheirsMarker.test(lines[i])) {
+      // Look ahead to verify this is a well-formed conflict block:
+      // must have a ======= separator and a >>>>>>> closing marker.
+      let hasSeparator = false
+      let closingIndex = -1
+      for (let j = i + 1; j < lines.length; j++) {
+        if (reassemblySeparatorMarker.test(lines[j])) {
+          hasSeparator = true
+        } else if (reassemblyTheirsMarker.test(lines[j])) {
+          closingIndex = j
+          break
+        }
+      }
+
+      if (!hasSeparator || closingIndex === -1) {
+        // Malformed marker — copy through as regular content
+        resultLines.push(lines[i])
         i++
+        continue
       }
-      if (i < lines.length) {
-        i++ // skip the >>>>>>> line
-      }
+
+      // Skip through the entire conflict marker block
+      i = closingIndex + 1
 
       // Splice in the resolved content for this hunk
       if (hunkIndex < hunkResolutions.length) {

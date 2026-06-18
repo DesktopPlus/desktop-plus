@@ -401,19 +401,18 @@ export async function getWorkingDirectoryDiff(
 }
 
 /**
- * Compute a diff between the merge base version of a file and either
- * Copilot's resolved content string or the content from a specific merge
- * index stage.
+ * Compute a diff between the working-tree file and either Copilot's
+ * resolved content string or the content from a specific merge index stage.
  *
- * During an active merge, git stores the common ancestor at index stage 1
- * (`git show :1:<path>`). We diff that against the target content so the
- * user sees what changed relative to the last clean version — no conflict
- * markers.
+ * The baseline is always the on-disk file (which still has conflict markers
+ * during an active merge). This gives a consistent view across all three
+ * resolution options (Copilot, current, incoming) — the user sees exactly
+ * what each choice changes relative to the file's current state.
  *
  * Two calling conventions:
  *
  * 1. **Content mode** — pass a `content` string (e.g. Copilot's resolved
- *    text) to diff directly against the merge base.
+ *    text) to diff directly against the working-tree file.
  * 2. **Stage mode** — pass `stage: 'ours' | 'theirs'` to read from the
  *    merge index (`git show :2:<path>` or `git show :3:<path>`).
  *    These always refer to git's definition: `ours` = stage 2 (HEAD at
@@ -422,12 +421,9 @@ export async function getWorkingDirectoryDiff(
  *    and the rebased commit is "theirs". The caller is responsible for
  *    mapping user-facing labels to the correct git side.
  *
- * For stage-based diffs, follows `getWorkingDirectoryDiff` patterns:
- * - If the stage doesn't exist but the base does (file deleted in that
- *   branch), diffs base → empty to show all lines as deletions.
- * - If neither base nor stage exists, returns Unrenderable.
- * - If the base doesn't exist but the stage does (file added in that
- *   branch), diffs empty → stage to show all lines as additions.
+ * If the requested stage blob doesn't exist (e.g. file deleted on that
+ * side in a modify/delete conflict), the target content is empty, showing
+ * the on-disk content as entirely deleted.
  *
  * Uses `git diff --no-index` with temp files.
  */
@@ -440,43 +436,31 @@ export async function getResolutionDiff(
   const gitStage =
     'stage' in options ? (options.stage === 'ours' ? ':2' : ':3') : undefined
 
-  let baseContent: string
+  // Always diff against the working-tree file (which still has conflict
+  // markers). This gives a consistent baseline for all three resolution
+  // choices (Copilot, current, incoming) so the user sees exactly what each
+  // option changes relative to the file's current state on disk.
+  const baseContent = await readFile(
+    Path.join(repository.path, filePath),
+    'utf8'
+  )
   let targetContent: string
 
   if (gitStage === undefined) {
     // Direct content mode (e.g. Copilot's resolved text).
-    // Read merge base from stage 1; fall back to on-disk if not in a merge.
-    const resolvedContent = (options as { content: string }).content
-    try {
-      const buffer = await getBlobContents(repository, ':1', filePath)
-      baseContent = buffer.toString('utf-8')
-    } catch {
-      baseContent = await readFile(Path.join(repository.path, filePath), 'utf8')
+    if (!('content' in options)) {
+      return { kind: DiffType.Unrenderable }
     }
-    targetContent = resolvedContent
+    targetContent = options.content
   } else {
-    // Stage mode — read both base and target from the merge index.
-    let baseExists = true
-    try {
-      const buffer = await getBlobContents(repository, ':1', filePath)
-      baseContent = buffer.toString('utf-8')
-    } catch {
-      baseContent = ''
-      baseExists = false
-    }
-
-    let stageExists = true
+    // Stage mode — read the chosen side from the merge index.
+    // If the blob doesn't exist (e.g. file deleted on that side in a
+    // modify/delete conflict), use empty content to show full deletion.
     try {
       const buffer = await getBlobContents(repository, gitStage, filePath)
       targetContent = buffer.toString('utf-8')
     } catch {
       targetContent = ''
-      stageExists = false
-    }
-
-    // Neither base nor stage exists — nothing meaningful to diff.
-    if (!baseExists && !stageExists) {
-      return { kind: DiffType.Unrenderable }
     }
   }
 
