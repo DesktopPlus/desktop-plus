@@ -221,13 +221,18 @@ function buildRepositoryRows(
   const worktrees = r instanceof Repository ? repoState?.worktrees ?? [] : []
   const mainWorktree = worktrees.find(wt => wt.type === 'main') ?? null
 
+  const aheadBehind = repoState?.aheadBehind ?? null
+  const changedFilesCount = repoState?.changedFilesCount ?? 0
+  const isMainWorktreeActive =
+    mainWorktree === null || mainWorktree.path === r.path
+
   const mainWorktreeRow: IRepositoryListItem = {
     text,
     id: r.id.toString(),
     repository: r,
     needsDisambiguation,
-    aheadBehind: repoState?.aheadBehind ?? null,
-    changedFilesCount: repoState?.changedFilesCount ?? 0,
+    aheadBehind: isMainWorktreeActive ? aheadBehind : null,
+    changedFilesCount: isMainWorktreeActive ? changedFilesCount : 0,
     branchName: mainWorktree
       ? shortBranchName(mainWorktree.branch)
       : repoState?.branchName ?? null,
@@ -238,19 +243,20 @@ function buildRepositoryRows(
   // Linked worktree rows match the same filter text as their repository so they travel with it
   const linkedWorktreeRows = worktrees
     .filter(wt => wt.type === 'linked')
-    .map(
-      (wt): IRepositoryListItem => ({
+    .map((wt): IRepositoryListItem => {
+      const isActiveWorktree = wt.path === r.path
+      return {
         text,
         id: `${r.id}:${wt.path}`,
         repository: r,
         needsDisambiguation: false,
-        aheadBehind: null,
-        changedFilesCount: 0,
+        aheadBehind: isActiveWorktree ? aheadBehind : null,
+        changedFilesCount: isActiveWorktree ? changedFilesCount : 0,
         branchName: shortBranchName(wt.branch),
         defaultBranchName,
         worktree: wt,
-      })
-    )
+      }
+    })
 
   return [mainWorktreeRow, ...linkedWorktreeRows]
 }

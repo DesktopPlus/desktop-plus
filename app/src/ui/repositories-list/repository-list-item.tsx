@@ -140,6 +140,11 @@ export class RepositoryListItem extends React.Component<
         <div className="name">{Path.basename(worktree.path)}</div>
 
         {renderBranchNameBadge(this.props.branchName)}
+
+        {renderRepoIndicators({
+          aheadBehind: this.props.aheadBehind,
+          hasChanges: this.props.changedFilesCount > 0,
+        })}
       </div>
     )
   }
