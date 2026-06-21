@@ -59,6 +59,7 @@ interface IRepositoryViewProps {
   readonly showDiffMinimap: boolean
   readonly showDiffCheckMarks: boolean
   readonly preferAbsoluteDates: boolean
+  readonly showConventionalCommitBadges: boolean
   readonly askForConfirmationOnDiscardChanges: boolean
   readonly askForConfirmationOnCommitFilteredChanges: boolean
   readonly askForConfirmationOnDiscardStash: boolean
@@ -459,6 +460,7 @@ export class RepositoryView extends React.Component<
         tagsToPush={tagsToPush}
         isMultiCommitOperationInProgress={mcos !== null}
         preferAbsoluteDates={this.props.preferAbsoluteDates}
+        showConventionalCommitBadges={this.props.showConventionalCommitBadges}
         askForConfirmationOnCheckoutCommit={
           this.props.askForConfirmationOnCheckoutCommit
         }
@@ -521,6 +523,7 @@ export class RepositoryView extends React.Component<
         }
         accounts={this.props.accounts}
         preferAbsoluteDates={this.props.preferAbsoluteDates}
+        showConventionalCommitBadges={this.props.showConventionalCommitBadges}
       />
     )
   }

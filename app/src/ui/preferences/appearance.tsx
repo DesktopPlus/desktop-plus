@@ -57,6 +57,8 @@ interface IAppearanceProps {
   readonly onShowWorktreesInRepoListChanged: (show: boolean) => void
   readonly showCompareTab: boolean
   readonly onShowCompareTabChanged: (show: boolean) => void
+  readonly showConventionalCommitBadges: boolean
+  readonly onShowConventionalCommitBadgesChanged: (show: boolean) => void
   readonly showBranchNameInRepoList: ShowBranchNameInRepoListSetting
   readonly onShowBranchNameInRepoListChanged: (
     value: ShowBranchNameInRepoListSetting
@@ -84,6 +86,7 @@ interface IAppearanceState {
   readonly showWorktrees: boolean
   readonly showWorktreesInRepoList: boolean
   readonly showCompareTab: boolean
+  readonly showConventionalCommitBadges: boolean
 }
 
 function getTitleBarStyleDescription(titleBarStyle: TitleBarStyle): string {
@@ -122,6 +125,7 @@ export class Appearance extends React.Component<
       showWorktrees: props.showWorktrees,
       showWorktreesInRepoList: props.showWorktreesInRepoList,
       showCompareTab: props.showCompareTab,
+      showConventionalCommitBadges: props.showConventionalCommitBadges,
     }
 
     if (!usePropTheme) {
@@ -158,6 +162,7 @@ export class Appearance extends React.Component<
       showWorktrees: this.props.showWorktrees,
       showWorktreesInRepoList: this.props.showWorktreesInRepoList,
       showCompareTab: this.props.showCompareTab,
+      showConventionalCommitBadges: this.props.showConventionalCommitBadges,
     })
 
     if (
@@ -222,6 +227,14 @@ export class Appearance extends React.Component<
     const show = event.currentTarget.checked
     this.setState({ showCompareTab: show })
     this.props.onShowCompareTabChanged(show)
+  }
+
+  private onShowConventionalCommitBadgesChanged = (
+    event: React.FormEvent<HTMLInputElement>
+  ) => {
+    const show = event.currentTarget.checked
+    this.setState({ showConventionalCommitBadges: show })
+    this.props.onShowConventionalCommitBadgesChanged(show)
   }
 
   private onSelectedTabSizeChanged = (
@@ -494,6 +507,16 @@ export class Appearance extends React.Component<
               this.state.showCompareTab ? CheckboxValue.On : CheckboxValue.Off
             }
             onChange={this.onShowCompareTabChanged}
+          />
+
+          <Checkbox
+            label="Show Conventional Commits prefixes as badges"
+            value={
+              this.state.showConventionalCommitBadges
+                ? CheckboxValue.On
+                : CheckboxValue.Off
+            }
+            onChange={this.onShowConventionalCommitBadgesChanged}
           />
         </div>
       </>

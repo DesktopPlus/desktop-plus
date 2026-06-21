@@ -1866,6 +1866,9 @@ export class App extends React.Component<IAppProps, IAppState> {
             showWorktrees={this.state.showWorktrees}
             showWorktreesInRepoList={this.state.showWorktreesInRepoList}
             showCompareTab={this.state.showCompareTab}
+            showConventionalCommitBadges={
+              this.state.showConventionalCommitBadges
+            }
             repositoryIndicatorsEnabled={this.state.repositoryIndicatorsEnabled}
             hideWindowOnQuit={this.state.hideWindowOnQuit}
             onEditGlobalGitConfig={this.editGlobalGitConfig}
@@ -4119,6 +4122,7 @@ export class App extends React.Component<IAppProps, IAppState> {
           hideWhitespaceInHistoryDiff={state.hideWhitespaceInHistoryDiff}
           showDiffCheckMarks={state.showDiffCheckMarks}
           preferAbsoluteDates={state.preferAbsoluteDates}
+          showConventionalCommitBadges={state.showConventionalCommitBadges}
           showSideBySideDiff={state.showSideBySideDiff}
           showDiffMinimap={state.showDiffMinimap}
           focusCommitMessage={state.focusCommitMessage}

@@ -353,6 +353,12 @@ export interface IAppState {
   readonly showCompareTab: boolean
 
   /**
+   * Whether commit summaries that follow the Conventional Commits format should
+   * render their type prefix as a colored badge in the commit list.
+   */
+  readonly showConventionalCommitBadges: boolean
+
+  /**
    * A map keyed on a user account (GitHub.com or GitHub Enterprise)
    * containing an object with repositories that the authenticated
    * user has explicit permission (:read, :write, or :admin) to access

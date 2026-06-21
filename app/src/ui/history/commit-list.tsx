@@ -217,6 +217,12 @@ interface ICommitListProps {
 
   readonly preferAbsoluteDates: boolean
 
+  /**
+   * Whether to render recognised Conventional Commits prefixes as colored
+   * badges in the commit summary.
+   */
+  readonly showConventionalCommitBadges: boolean
+
   /** This will make the list semantics friendly to screen reader users in browse mode. */
   readonly isInformationalView?: boolean
 
@@ -375,6 +381,7 @@ export class CommitList extends React.Component<
         accounts={this.props.accounts}
         dragSourceBranch={this.props.dragSourceBranch}
         preferAbsoluteDates={this.props.preferAbsoluteDates}
+        showConventionalCommitBadges={this.props.showConventionalCommitBadges}
       />
     )
   }
@@ -730,6 +737,8 @@ export class CommitList extends React.Component<
             tagsToPush: this.props.tagsToPush,
             shasToHighlight: this.props.shasToHighlight,
             preferAbsoluteDates: this.props.preferAbsoluteDates,
+            showConventionalCommitBadges:
+              this.props.showConventionalCommitBadges,
             additionalInvalidationProps: this.props.additionalInvalidationProps,
           }}
           setScrollTop={this.props.compareListScrollTop}

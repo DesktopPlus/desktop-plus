@@ -128,6 +128,7 @@ interface IPreferencesProps {
   readonly showWorktrees: boolean
   readonly showWorktreesInRepoList: boolean
   readonly showCompareTab: boolean
+  readonly showConventionalCommitBadges: boolean
   readonly repositoryIndicatorsEnabled: boolean
   readonly showBranchNameInRepoList: ShowBranchNameInRepoListSetting
   readonly branchSortOrder: BranchSortOrder
@@ -183,6 +184,7 @@ interface IPreferencesState {
   readonly showWorktrees: boolean
   readonly showWorktreesInRepoList: boolean
   readonly showCompareTab: boolean
+  readonly showConventionalCommitBadges: boolean
   /**
    * If unable to save Git configuration values (name, email)
    * due to an existing configuration lock file this property
@@ -283,6 +285,7 @@ export class Preferences extends React.Component<
       showWorktrees: this.props.showWorktrees,
       showWorktreesInRepoList: this.props.showWorktreesInRepoList,
       showCompareTab: this.props.showCompareTab,
+      showConventionalCommitBadges: this.props.showConventionalCommitBadges,
       repositoryIndicatorsEnabled: this.props.repositoryIndicatorsEnabled,
       showBranchNameInRepoList: this.props.showBranchNameInRepoList,
       branchSortOrder: this.props.branchSortOrder,
@@ -725,6 +728,12 @@ export class Preferences extends React.Component<
             }
             showCompareTab={this.state.showCompareTab}
             onShowCompareTabChanged={this.onShowCompareTabChanged}
+            showConventionalCommitBadges={
+              this.state.showConventionalCommitBadges
+            }
+            onShowConventionalCommitBadgesChanged={
+              this.onShowConventionalCommitBadgesChanged
+            }
             showBranchNameInRepoList={this.state.showBranchNameInRepoList}
             onShowBranchNameInRepoListChanged={
               this.onShowBranchNameInRepoListChanged
@@ -1126,6 +1135,12 @@ export class Preferences extends React.Component<
     this.setState({ showCompareTab })
   }
 
+  private onShowConventionalCommitBadgesChanged = (
+    showConventionalCommitBadges: boolean
+  ) => {
+    this.setState({ showConventionalCommitBadges })
+  }
+
   private renderFooter() {
     const hasDisabledError = this.state.disallowedCharactersMessage != null
 
@@ -1218,6 +1233,15 @@ export class Preferences extends React.Component<
 
       if (this.state.showCompareTab !== this.props.showCompareTab) {
         dispatcher.setShowCompareTab(this.state.showCompareTab)
+      }
+
+      if (
+        this.state.showConventionalCommitBadges !==
+        this.props.showConventionalCommitBadges
+      ) {
+        dispatcher.setShowConventionalCommitBadges(
+          this.state.showConventionalCommitBadges
+        )
       }
 
       if (this.state.hideWindowOnQuit !== this.props.hideWindowOnQuit) {

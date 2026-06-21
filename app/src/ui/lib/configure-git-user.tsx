@@ -195,6 +195,7 @@ export class ConfigureGitUser extends React.Component<
           showUnpushedIndicator={false}
           selectedCommits={[dummyCommit]}
           accounts={this.props.accounts}
+          showConventionalCommitBadges={false}
           preferAbsoluteDates={false}
         />
       </div>

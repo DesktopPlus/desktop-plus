@@ -10,6 +10,8 @@ import { Octicon } from '../octicons'
 import * as octicons from '../octicons/octicons.generated'
 import { commitGraph_RowHeight, ICommitGraphRow } from './commit-graph-model'
 import { Tokenizer, TokenType } from '../../lib/text-token-parser'
+import { ConventionalCommitBadge } from '../lib/conventional-commit-badge'
+import { parseConventionalCommit } from '../../lib/conventional-commits'
 import { assertNever } from '../../lib/fatal-error'
 import { getAvatarUsersForCommit, IAvatarUser } from '../../models/avatar'
 import { AvatarStack } from '../lib/avatar-stack'
@@ -26,6 +28,7 @@ interface ICommitGraphCommitListItemProps {
   readonly showUnpushedIndicator: boolean
   readonly unpushedIndicatorTitle?: string
   readonly preferAbsoluteDates: boolean
+  readonly showConventionalCommitBadges: boolean
   readonly currentBranch: Branch | null
   readonly currentTipSha: string | null
   readonly gitHubRepository: GitHubRepository | null
@@ -49,11 +52,15 @@ interface ICommitGraphSummaryProps {
   readonly className: string
   readonly emoji: Map<string, Emoji>
   readonly text: string
+  readonly showConventionalCommitBadges: boolean
 }
 
 class CommitGraphSummary extends React.PureComponent<ICommitGraphSummaryProps> {
   public render() {
-    const { className, emoji, text } = this.props
+    const { className, emoji, text, showConventionalCommitBadges } = this.props
+    const parsed = showConventionalCommitBadges
+      ? parseConventionalCommit(text)
+      : null
 
     return (
       <TooltippedContent
@@ -62,7 +69,11 @@ class CommitGraphSummary extends React.PureComponent<ICommitGraphSummaryProps> {
         tooltip={text}
         onlyWhenOverflowed={true}
       >
-        {commitGraph_renderSummaryTokens(emoji, text)}
+        {parsed !== null && <ConventionalCommitBadge parsed={parsed} />}
+        {commitGraph_renderSummaryTokens(
+          emoji,
+          parsed === null ? text : parsed.rest
+        )}
       </TooltippedContent>
     )
   }
@@ -95,6 +106,9 @@ export class CommitGraphCommitListItem extends React.PureComponent<ICommitGraphC
               className={summaryClassNames}
               emoji={this.props.emoji}
               text={commitSummary}
+              showConventionalCommitBadges={
+                this.props.showConventionalCommitBadges
+              }
             />
           </div>
           <span className="commitGraph-date">

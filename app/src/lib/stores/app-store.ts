@@ -556,6 +556,8 @@ const showWorktreesKey = 'show-worktrees-foldout'
 const showWorktreesInRepoListKey = 'show-worktrees-in-repo-list'
 const showCompareTabKey = 'show-compare-tab'
 const showCompareTabDefault = true
+const showConventionalCommitBadgesKey = 'show-conventional-commit-badges'
+const showConventionalCommitBadgesDefault = true
 const repositoryIndicatorsEnabledKey = 'enable-repository-indicators'
 
 // background fetching should occur hourly when Desktop is active, but this
@@ -744,6 +746,8 @@ export class AppStore extends TypedBaseStore<IAppState> {
   private showWorktrees: boolean = false
   private showWorktreesInRepoList: boolean = false
   private showCompareTab: boolean = showCompareTabDefault
+  private showConventionalCommitBadges: boolean =
+    showConventionalCommitBadgesDefault
   private hideWindowOnQuit: boolean = __DARWIN__
 
   private useWindowsOpenSSH: boolean = false
@@ -878,6 +882,10 @@ export class AppStore extends TypedBaseStore<IAppState> {
     this.showWorktreesInRepoList =
       getBoolean(showWorktreesInRepoListKey) ?? false
     this.showCompareTab = getBoolean(showCompareTabKey, showCompareTabDefault)
+    this.showConventionalCommitBadges = getBoolean(
+      showConventionalCommitBadgesKey,
+      showConventionalCommitBadgesDefault
+    )
 
     this.repositoryIndicatorUpdater = new RepositoryIndicatorUpdater(
       this.getRepositoriesForIndicatorRefresh,
@@ -1384,6 +1392,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       showWorktrees: this.showWorktrees,
       showWorktreesInRepoList: this.showWorktreesInRepoList,
       showCompareTab: this.showCompareTab,
+      showConventionalCommitBadges: this.showConventionalCommitBadges,
       apiRepositories: this.apiRepositoriesStore.getState(),
       useWindowsOpenSSH: this.useWindowsOpenSSH,
       showCommitLengthWarning: this.showCommitLengthWarning,
@@ -4852,6 +4861,17 @@ export class AppStore extends TypedBaseStore<IAppState> {
         }
       }
     }
+    this.emitUpdate()
+  }
+
+  public _setShowConventionalCommitBadges(
+    showConventionalCommitBadges: boolean
+  ) {
+    if (this.showConventionalCommitBadges === showConventionalCommitBadges) {
+      return
+    }
+    setBoolean(showConventionalCommitBadgesKey, showConventionalCommitBadges)
+    this.showConventionalCommitBadges = showConventionalCommitBadges
     this.emitUpdate()
   }
 

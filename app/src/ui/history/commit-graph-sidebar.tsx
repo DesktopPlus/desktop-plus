@@ -75,6 +75,7 @@ interface ICommitGraphSidebarProps {
   readonly shasToHighlight: ReadonlyArray<string>
   readonly accounts: ReadonlyArray<Account>
   readonly preferAbsoluteDates: boolean
+  readonly showConventionalCommitBadges: boolean
 }
 
 interface ICommitGraphSidebarState {
@@ -782,6 +783,7 @@ export class CommitGraphSidebar extends React.Component<
         keyboardReorderData={this.state.keyboardReorderData}
         accounts={this.props.accounts}
         preferAbsoluteDates={this.props.preferAbsoluteDates}
+        showConventionalCommitBadges={this.props.showConventionalCommitBadges}
         commitGraphRowHeight={
           commitGraphIsTreeMode ? commitGraph_RowHeight : undefined
         }
@@ -827,6 +829,7 @@ export class CommitGraphSidebar extends React.Component<
         showUnpushedIndicator={props.showUnpushedIndicator}
         unpushedIndicatorTitle={props.unpushedIndicatorTitle}
         preferAbsoluteDates={this.props.preferAbsoluteDates}
+        showConventionalCommitBadges={this.props.showConventionalCommitBadges}
         currentBranch={this.props.currentBranch}
         currentTipSha={this.props.currentTipSha}
         gitHubRepository={this.props.repository.gitHubRepository}

@@ -3197,6 +3197,12 @@ export class Dispatcher {
     this.appStore._setShowCompareTab(showCompareTab)
   }
 
+  public setShowConventionalCommitBadges(
+    showConventionalCommitBadges: boolean
+  ) {
+    this.appStore._setShowConventionalCommitBadges(showConventionalCommitBadges)
+  }
+
   public setHideWindowOnQuit(hideWindowOnQuit: boolean) {
     this.appStore._setHideWindowOnQuit(hideWindowOnQuit)
   }

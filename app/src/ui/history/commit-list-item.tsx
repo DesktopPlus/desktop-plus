@@ -10,6 +10,8 @@ import { Branch } from '../../models/branch'
 import { GitHubRepository } from '../../models/github-repository'
 import { IAvatarUser, getAvatarUsersForCommit } from '../../models/avatar'
 import { RichText } from '../lib/rich-text'
+import { ConventionalCommitBadge } from '../lib/conventional-commit-badge'
+import { parseConventionalCommit } from '../../lib/conventional-commits'
 import { RelativeTime } from '../relative-time'
 import { CommitAttribution } from '../lib/commit-attribution'
 import { AvatarStack } from '../lib/avatar-stack'
@@ -52,6 +54,11 @@ interface ICommitProps {
   readonly accounts: ReadonlyArray<Account>
   readonly dragSourceBranch?: Branch
   readonly preferAbsoluteDates: boolean
+  /**
+   * Whether to render a recognised Conventional Commits prefix as a colored
+   * badge instead of plain text.
+   */
+  readonly showConventionalCommitBadges: boolean
 }
 
 interface ICommitListItemState {
@@ -158,12 +165,7 @@ export class CommitListItem extends React.PureComponent<
           onMouseUp={this.onMouseUp}
         >
           <div className="info">
-            <RichText
-              className={summaryClassNames}
-              emoji={this.props.emoji}
-              text={commitSummary}
-              renderUrlsAsLinks={false}
-            />
+            {this.renderSummary(commitSummary, summaryClassNames)}
             <div className="description">
               <AvatarStack
                 users={this.state.avatarUsers}
@@ -179,6 +181,32 @@ export class CommitListItem extends React.PureComponent<
           {this.renderCommitIndicators()}
         </div>
       </Draggable>
+    )
+  }
+
+  private renderSummary(commitSummary: string, summaryClassNames: string) {
+    const parsed = this.props.showConventionalCommitBadges
+      ? parseConventionalCommit(commitSummary)
+      : null
+
+    const richText = (
+      <RichText
+        className={summaryClassNames}
+        emoji={this.props.emoji}
+        text={parsed === null ? commitSummary : parsed.rest}
+        renderUrlsAsLinks={false}
+      />
+    )
+
+    if (parsed === null) {
+      return richText
+    }
+
+    return (
+      <div className="summary-with-badge">
+        <ConventionalCommitBadge parsed={parsed} />
+        {richText}
+      </div>
     )
   }
 
