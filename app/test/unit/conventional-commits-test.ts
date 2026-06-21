@@ -94,9 +94,19 @@ describe('parseConventionalCommit', () => {
     )
   })
 
-  it('returns null for unrecognised types', () => {
-    assert.strictEqual(parseConventionalCommit('note: heads up'), null)
-    assert.strictEqual(parseConventionalCommit('merge: a branch'), null)
+  it('parses unrecognised types using the raw type as the label', () => {
+    assert.deepStrictEqual(parseConventionalCommit('note: heads up'), {
+      rawType: 'note',
+      label: 'note',
+      scope: null,
+      rest: 'heads up',
+    })
+    assert.deepStrictEqual(parseConventionalCommit('merge: a branch'), {
+      rawType: 'merge',
+      label: 'merge',
+      scope: null,
+      rest: 'a branch',
+    })
   })
 
   it('matches the type case-insensitively, normalising rawType to lower case', () => {
@@ -118,6 +128,5 @@ describe('parseConventionalCommit', () => {
     assert.strictEqual(parseConventionalCommit('just a normal commit'), null)
     assert.strictEqual(parseConventionalCommit(''), null)
     assert.strictEqual(parseConventionalCommit('feat add button'), null)
-    assert.strictEqual(parseConventionalCommit('feature: missing colon'), null)
   })
 })
