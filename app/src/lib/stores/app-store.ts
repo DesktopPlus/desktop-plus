@@ -4311,8 +4311,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       return
     }
 
-    const wasWorktreeFoldout =
-      this.currentFoldout.type === FoldoutType.Worktree
+    const wasWorktreeFoldout = this.currentFoldout.type === FoldoutType.Worktree
 
     this.currentFoldout = null
 
@@ -4333,8 +4332,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       return
     }
 
-    const wasWorktreeFoldout =
-      this.currentFoldout.type === FoldoutType.Worktree
+    const wasWorktreeFoldout = this.currentFoldout.type === FoldoutType.Worktree
 
     this.currentFoldout = null
 
