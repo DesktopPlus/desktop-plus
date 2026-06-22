@@ -65,7 +65,9 @@ const options: DebianOptions = {
   depends: [
     // Desktop-specific dependencies
     'libcurl3 | libcurl4',
-    'libcurl3-gnutls',
+    // The bundled git links against libcurl-gnutls.so.4. The package providing
+    // it was renamed across Debian releases.
+    'libcurl3-gnutls | libcurl4-gnutls',
     'libsecret-1-0',
     'gnome-keyring',
   ],
