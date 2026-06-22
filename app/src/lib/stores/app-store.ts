@@ -5998,6 +5998,13 @@ export class AppStore extends TypedBaseStore<IAppState> {
         repository,
         newPath
       )
+
+      // Renaming changes the repository's path and therefore its hash, which
+      // is the key used by the state cache. Carry the existing state over to
+      // the new identity so we don't reset the UI (e.g. a typed commit
+      // message) just because the worktree was renamed.
+      this.repositoryStateCache.transferState(repository, result.repository)
+
       await this._selectRepository(result.repository)
       await this._refreshWorktrees(result.repository)
     } else {
