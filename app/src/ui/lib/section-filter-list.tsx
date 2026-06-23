@@ -140,6 +140,7 @@ interface ISectionFilterListProps<T extends IFilterListItem, GroupIdentifier> {
   readonly onFilterTextChanged?: (text: string) => void
 
   /** A function to post-process the filtered items before rendering them. */
+  // eslint-disable-next-line react/no-unused-prop-types
   readonly postProcessMatches?: (
     items: readonly IMatch<T>[]
   ) => ReadonlyArray<IMatch<T>>
