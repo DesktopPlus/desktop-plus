@@ -144,6 +144,10 @@ export async function removeWorktree(
   await git(args, repositoryPath, 'removeWorktree')
 }
 
+export async function pruneWorktrees(repository: Repository): Promise<void> {
+  await git(['worktree', 'prune'], repository.path, 'pruneWorktrees')
+}
+
 export async function moveWorktree(
   repository: Repository,
   oldPath: string,

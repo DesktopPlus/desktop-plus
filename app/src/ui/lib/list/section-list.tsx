@@ -1394,7 +1394,8 @@ export class SectionList extends React.Component<
           )}
           scrollTop={relativeScrollTop}
           overscanRowCount={4}
-          style={{ ...params.style, width: '100%' }}
+          style={{ ...params.style, width: '100%', overflow: 'hidden' }}
+          containerStyle={{ overflow: 'hidden' }}
           tabIndex={-1}
           aria-label={this.props.getSectionAriaLabel?.(section)}
         />

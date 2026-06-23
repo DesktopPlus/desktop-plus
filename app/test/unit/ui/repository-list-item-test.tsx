@@ -8,6 +8,7 @@ import { Owner } from '../../../src/models/owner'
 import { RepositoryListItem } from '../../../src/ui/repositories-list/repository-list-item'
 import { render, fireEvent, screen, waitFor } from '../../helpers/ui/render'
 import { IMatches } from '../../../src/lib/fuzzy-find'
+import { WorktreeEntry } from '../../../src/models/worktree'
 import {
   advanceTimersBy,
   enableTestTimers,
@@ -50,11 +51,15 @@ describe('RepositoryListItem', () => {
     const view = render(
       <RepositoryListItem
         repository={repository}
+        title="desktop"
         needsDisambiguation={false}
         matches={noMatches}
         aheadBehind={{ ahead: 2, behind: 1 }}
         changedFilesCount={3}
         branchName={'main'}
+        worktreePathDisambiguation={null}
+        isNestedWorktree={false}
+        isPrunableWorktree={false}
         worktree={null}
       />
     )
@@ -76,11 +81,15 @@ describe('RepositoryListItem', () => {
     const view = render(
       <RepositoryListItem
         repository={repository}
+        title="desktop-app"
         needsDisambiguation={true}
         matches={noMatches}
         aheadBehind={null}
         changedFilesCount={0}
         branchName={'main'}
+        worktreePathDisambiguation={null}
+        isNestedWorktree={false}
+        isPrunableWorktree={false}
         worktree={null}
       />
     )
@@ -97,11 +106,15 @@ describe('RepositoryListItem', () => {
     const view = render(
       <RepositoryListItem
         repository={repository}
+        title="desktop-app"
         needsDisambiguation={true}
         matches={noMatches}
         aheadBehind={null}
         changedFilesCount={0}
         branchName={'main'}
+        worktreePathDisambiguation={null}
+        isNestedWorktree={false}
+        isPrunableWorktree={false}
         worktree={null}
       />
     )
@@ -122,5 +135,41 @@ describe('RepositoryListItem', () => {
       assert.ok(screen.getByText('octocat/desktop', { selector: 'strong' }))
       assert.ok(screen.getByText(fixtureRepositoryPath))
     })
+  })
+
+  it('renders visible path disambiguation for duplicate-name worktree rows', () => {
+    const repository = createRepository()
+    const worktree: WorktreeEntry = {
+      path: '/tmp/worktree-path/repo',
+      type: 'linked',
+      branch: null,
+      head: 'deadbeef',
+      isDetached: true,
+      isLocked: false,
+      isPrunable: false,
+    }
+    const view = render(
+      <RepositoryListItem
+        repository={repository}
+        title="repo"
+        needsDisambiguation={false}
+        matches={noMatches}
+        aheadBehind={null}
+        changedFilesCount={0}
+        branchName={null}
+        worktreePathDisambiguation="/tmp/worktree-path"
+        isNestedWorktree={true}
+        isPrunableWorktree={false}
+        worktree={worktree}
+      />
+    )
+
+    const name = view.container.querySelector('.name')
+    const pathDisambiguation = view.container.querySelector(
+      '.worktree-path-disambiguation'
+    )
+
+    assert.equal(name?.textContent, 'repo')
+    assert.equal(pathDisambiguation?.textContent, '/tmp/worktree-path')
   })
 })

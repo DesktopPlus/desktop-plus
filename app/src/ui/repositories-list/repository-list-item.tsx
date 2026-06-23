@@ -1,5 +1,4 @@
 import * as React from 'react'
-import * as Path from 'path'
 
 import { Repository } from '../../models/repository'
 import { Octicon, iconForRepository } from '../octicons'
@@ -18,6 +17,9 @@ import { TooltippedContent } from '../lib/tooltipped-content'
 interface IRepositoryListItemProps {
   readonly repository: Repositoryish
 
+  /** The repository or worktree name to display in the list. */
+  readonly title: string
+
   /** Does the repository need to be disambiguated in the list? */
   readonly needsDisambiguation: boolean
 
@@ -32,6 +34,15 @@ interface IRepositoryListItemProps {
 
   /** The name of the current branch, if it should be displayed */
   readonly branchName: string | null
+
+  /** Parent path to show when duplicate worktree names need visible disambiguation. */
+  readonly worktreePathDisambiguation: string | null
+
+  /** Whether this row is rendered nested below a main worktree row. */
+  readonly isNestedWorktree: boolean
+
+  /** Whether this row represents a stale worktree entry that Git can prune. */
+  readonly isPrunableWorktree: boolean
 
   /**
    * When set to a linked worktree, this row renders as a worktree nested below
@@ -54,6 +65,14 @@ function renderBranchNameBadge(branchName: string | null) {
   )
 }
 
+function renderWorktreePathDisambiguation(path: string | null) {
+  if (!path) {
+    return null
+  }
+
+  return <span className="worktree-path-disambiguation">{path}</span>
+}
+
 /** A repository item. */
 export class RepositoryListItem extends React.Component<
   IRepositoryListItemProps,
@@ -62,8 +81,8 @@ export class RepositoryListItem extends React.Component<
   private readonly listItemRef = createObservableRef<HTMLDivElement>()
 
   public render() {
-    const { worktree } = this.props
-    return worktree !== null && worktree.type === 'linked'
+    const { isNestedWorktree, worktree } = this.props
+    return isNestedWorktree && worktree !== null && worktree.type === 'linked'
       ? this.renderWorktree(worktree)
       : this.renderRepository()
   }
@@ -83,7 +102,7 @@ export class RepositoryListItem extends React.Component<
     }
 
     const classNameList = classNames('name', {
-      alias: alias !== null,
+      alias: alias !== null && this.props.title === alias,
     })
 
     return (
@@ -103,12 +122,16 @@ export class RepositoryListItem extends React.Component<
         <div className={classNames(classNameList)}>
           {prefix ? <span className="prefix">{prefix}</span> : null}
           <HighlightText
-            text={alias ?? repository.name}
+            text={this.props.title}
             highlight={this.props.matches.title}
           />
         </div>
 
         {renderBranchNameBadge(this.props.branchName)}
+        {renderWorktreePathDisambiguation(
+          this.props.worktreePathDisambiguation
+        )}
+        {this.props.isPrunableWorktree && renderPrunableIndicator()}
 
         {repository instanceof Repository &&
           renderRepoIndicators({
@@ -139,12 +162,16 @@ export class RepositoryListItem extends React.Component<
 
         <div className="name">
           <HighlightText
-            text={Path.basename(worktree.path)}
+            text={this.props.title}
             highlight={this.props.matches.title}
           />
         </div>
 
         {renderBranchNameBadge(this.props.branchName)}
+        {renderWorktreePathDisambiguation(
+          this.props.worktreePathDisambiguation
+        )}
+        {this.props.isPrunableWorktree && renderPrunableIndicator()}
 
         {renderRepoIndicators({
           aheadBehind: this.props.aheadBehind,
@@ -159,6 +186,7 @@ export class RepositoryListItem extends React.Component<
     const gitHubRepo = repo instanceof Repository ? repo.gitHubRepository : null
     const alias = repo instanceof Repository ? repo.alias : null
     const realName = gitHubRepo ? gitHubRepo.fullName : repo.name
+    const path = this.props.worktree?.path ?? repo.path
 
     return (
       <>
@@ -166,8 +194,11 @@ export class RepositoryListItem extends React.Component<
           <strong>{realName}</strong>
           {alias && <> ({alias})</>}
         </div>
-        <div>{repo.path}</div>
+        <div>{path}</div>
         {this.props.branchName && <div>Branch: {this.props.branchName}</div>}
+        {this.props.isPrunableWorktree && (
+          <div>This worktree entry is stale and should be pruned.</div>
+        )}
       </>
     )
   }
@@ -177,6 +208,9 @@ export class RepositoryListItem extends React.Component<
       <>
         <div>{worktree.path}</div>
         {this.props.branchName && <div>Branch: {this.props.branchName}</div>}
+        {this.props.isPrunableWorktree && (
+          <div>This worktree entry is stale and should be pruned.</div>
+        )}
       </>
     )
   }
@@ -188,11 +222,16 @@ export class RepositoryListItem extends React.Component<
     ) {
       return (
         nextProps.repository.id !== this.props.repository.id ||
+        nextProps.title !== this.props.title ||
         nextProps.matches !== this.props.matches ||
         nextProps.branchName !== this.props.branchName ||
+        nextProps.worktreePathDisambiguation !==
+          this.props.worktreePathDisambiguation ||
         nextProps.needsDisambiguation !== this.props.needsDisambiguation ||
         nextProps.aheadBehind !== this.props.aheadBehind ||
         nextProps.changedFilesCount !== this.props.changedFilesCount ||
+        nextProps.isNestedWorktree !== this.props.isNestedWorktree ||
+        nextProps.isPrunableWorktree !== this.props.isPrunableWorktree ||
         nextProps.worktree !== this.props.worktree
       )
     } else {
@@ -247,6 +286,18 @@ const renderChangesIndicator = () => {
       disabled={enableAccessibleListToolTips()}
     >
       <Octicon symbol={octicons.dotFill} />
+    </TooltippedContent>
+  )
+}
+
+const renderPrunableIndicator = () => {
+  return (
+    <TooltippedContent
+      className="prunable-indicator-wrapper"
+      tooltip="This worktree entry is stale and should be pruned"
+      disabled={enableAccessibleListToolTips()}
+    >
+      <Octicon symbol={octicons.alert} />
     </TooltippedContent>
   )
 }

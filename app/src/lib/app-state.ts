@@ -70,7 +70,7 @@ import { IAPIRepoRuleset } from './api'
 import { ICustomIntegration } from './custom-integration'
 import { Emoji } from './emoji'
 import { IUpdateState } from '../ui/lib/update-store'
-import type { Model } from '@github/copilot-sdk/dist/generated/rpc'
+import type { CopilotModel as Model } from './copilot/model'
 
 export enum SelectionType {
   Repository,
@@ -91,6 +91,11 @@ export type PossibleSelections =
     }
   | { type: SelectionType.MissingRepository; repository: Repository }
 
+export interface IRecentRepositorySelection {
+  readonly repositoryId: number
+  readonly path: string
+}
+
 /** All of the shared app state. */
 export interface IAppState {
   readonly accounts: ReadonlyArray<Account>
@@ -100,9 +105,9 @@ export interface IAppState {
   readonly repositories: ReadonlyArray<Repository | CloningRepository>
 
   /**
-   * List of IDs of the most recently opened repositories (most recent first)
+   * List of the most recently opened repository/worktree paths (most recent first)
    */
-  readonly recentRepositories: ReadonlyArray<number>
+  readonly recentRepositories: ReadonlyArray<IRecentRepositorySelection>
 
   /**
    * A cache of the latest repository state values, keyed by the repository id
@@ -342,6 +347,9 @@ export interface IAppState {
 
   /** Whether or not recent repositories should be shown in the repo list */
   readonly showRecentRepositories: boolean
+
+  /** Maximum number of recently selected repositories to remember */
+  readonly recentRepositoriesLength: number
 
   /** Whether or not the worktrees dropdown should be shown in the toolbar */
   readonly showWorktrees: boolean

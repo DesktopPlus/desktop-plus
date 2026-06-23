@@ -3197,6 +3197,10 @@ export class Dispatcher {
     this.appStore._setShowRecentRepositories(showRecentRepositories)
   }
 
+  public setRecentRepositoriesLength(recentRepositoriesLength: number) {
+    this.appStore._setRecentRepositoriesLength(recentRepositoriesLength)
+  }
+
   public setShowWorktrees(showWorktrees: boolean) {
     this.appStore._setShowWorktrees(showWorktrees)
   }

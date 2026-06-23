@@ -1,5 +1,5 @@
 import type { CopilotClient, CopilotSession } from '@github/copilot-sdk'
-import type { Model } from '@github/copilot-sdk/dist/generated/rpc'
+import type { CopilotModel as Model } from '../../../src/lib/copilot/model'
 import assert from 'node:assert'
 import { after, before, describe, it } from 'node:test'
 import { getDotComAPIEndpoint } from '../../../src/lib/api'

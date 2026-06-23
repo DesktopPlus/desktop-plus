@@ -12,9 +12,9 @@ import { PopoverDecoration } from './popover'
 import { PopoverDropdown } from './popover-dropdown'
 import { SectionFilterList } from './section-filter-list'
 import type {
-  Model,
-  ModelBilling,
-} from '@github/copilot-sdk/dist/generated/rpc'
+  CopilotModel as Model,
+  CopilotModelBilling as ModelBilling,
+} from '../../lib/copilot/model'
 
 interface ICopilotModelPickerProps {
   readonly label: string

@@ -5,6 +5,7 @@ import {
   groupRepositories,
   buildPinnedGroup,
   filterPinnedFromGroups,
+  isRepositoryListItemPinned,
   IRepositoryListItem,
   Repositoryish,
   RepositoryListGroup,
@@ -20,6 +21,7 @@ import { IMatch, IMatches } from '../../lib/fuzzy-find'
 import { ILocalRepositoryState, Repository } from '../../models/repository'
 import { normalizePath } from '../../lib/helpers/path'
 import { FoldoutType } from '../../lib/app-state'
+import type { IRecentRepositorySelection } from '../../lib/app-state'
 import { Dispatcher } from '../dispatcher'
 import { Button } from '../lib/button'
 import { Octicon, syncClockwise } from '../octicons'
@@ -31,8 +33,10 @@ import { encodePathAsUrl } from '../../lib/path'
 import { TooltippedContent } from '../lib/tooltipped-content'
 import memoizeOne from 'memoize-one'
 import { KeyboardShortcut } from '../keyboard-shortcut/keyboard-shortcut'
+import { pruneWorktrees } from '../../lib/git/worktree'
 import {
   generateRepositoryListContextMenu,
+  generateSyntheticWorktreeRootContextMenu,
   generateWorktreeListItemContextMenu,
 } from '../repositories-list/repository-list-item-context-menu'
 import { openWorktreeInNewWindow } from '../main-process-proxy'
@@ -49,7 +53,7 @@ interface IRepositoriesListProps {
   readonly selectedRepository: Repositoryish | null
   readonly repositories: ReadonlyArray<Repositoryish>
   readonly showRecentRepositories: boolean
-  readonly recentRepositories: ReadonlyArray<number>
+  readonly recentRepositories: ReadonlyArray<IRecentRepositorySelection>
 
   /** A cache of the latest repository state values, keyed by the repository id */
   readonly localRepositoryStateLookup: ReadonlyMap<
@@ -117,6 +121,83 @@ interface IRepositoriesListState {
 
 const RowHeight = 29
 
+export function shouldShowRepositoryListBranchName(
+  item: Pick<
+    IRepositoryListItem,
+    'branchName' | 'defaultBranchName' | 'needsBranchNameDisambiguation'
+  >,
+  showBranchNameInRepoList: ShowBranchNameInRepoListSetting
+): boolean {
+  if (item.needsBranchNameDisambiguation && item.branchName !== null) {
+    return true
+  }
+
+  switch (showBranchNameInRepoList) {
+    case ShowBranchNameInRepoListSetting.Never:
+      return false
+    case ShowBranchNameInRepoListSetting.Always:
+      return true
+    case ShowBranchNameInRepoListSetting.WhenNotDefault:
+      return item.branchName !== item.defaultBranchName
+    default:
+      assertNever(
+        showBranchNameInRepoList,
+        `Unknown show branch name setting: ${showBranchNameInRepoList}`
+      )
+  }
+}
+
+export function getWorktreeFamilyMainPath(
+  repository: Repository,
+  localRepositoryStateLookup: ReadonlyMap<number, ILocalRepositoryState>
+): string | null {
+  const repositoryPath = normalizePath(repository.path)
+  const directState = localRepositoryStateLookup.get(repository.id)
+  const directMainWorktree = directState?.worktrees.find(
+    wt => wt.type === 'main'
+  )
+
+  if (directMainWorktree !== undefined) {
+    return normalizePath(directMainWorktree.path)
+  }
+
+  for (const state of localRepositoryStateLookup.values()) {
+    const stateMainWorktree = state.worktrees.find(wt => wt.type === 'main')
+    if (stateMainWorktree === undefined) {
+      continue
+    }
+
+    if (state.worktrees.some(wt => normalizePath(wt.path) === repositoryPath)) {
+      return normalizePath(stateMainWorktree.path)
+    }
+  }
+
+  return null
+}
+
+export function getWorktreeFamilyRepositories(
+  repository: Repository,
+  repositories: ReadonlyArray<Repositoryish>,
+  localRepositoryStateLookup: ReadonlyMap<number, ILocalRepositoryState>
+): ReadonlyArray<Repository> {
+  const mainWorktreePath = getWorktreeFamilyMainPath(
+    repository,
+    localRepositoryStateLookup
+  )
+  if (mainWorktreePath === null) {
+    return [repository]
+  }
+
+  const family = repositories.filter(
+    (candidate): candidate is Repository =>
+      candidate instanceof Repository &&
+      getWorktreeFamilyMainPath(candidate, localRepositoryStateLookup) ===
+        mainWorktreePath
+  )
+
+  return family.length > 0 ? family : [repository]
+}
+
 /**
  * Iterate over all groups until a list item is found that matches
  * the id of the provided repository.
@@ -168,14 +249,16 @@ export class RepositoriesList extends React.Component<
     (
       repositories: ReadonlyArray<Repositoryish> | null,
       localRepositoryStateLookup: ReadonlyMap<number, ILocalRepositoryState>,
-      recentRepositories: ReadonlyArray<number>
+      recentRepositories: ReadonlyArray<IRecentRepositorySelection>,
+      showWorktreesInRepoList: boolean
     ) =>
       repositories === null
         ? []
         : groupRepositories(
             repositories,
             localRepositoryStateLookup,
-            recentRepositories
+            recentRepositories,
+            { showWorktreesInRepoList }
           )
   )
 
@@ -202,20 +285,10 @@ export class RepositoriesList extends React.Component<
   }
 
   private shouldShowBranchName(item: IRepositoryListItem): boolean {
-    const { showBranchNameInRepoList } = this.props
-    switch (showBranchNameInRepoList) {
-      case ShowBranchNameInRepoListSetting.Never:
-        return false
-      case ShowBranchNameInRepoListSetting.Always:
-        return true
-      case ShowBranchNameInRepoListSetting.WhenNotDefault:
-        return item.branchName !== item.defaultBranchName
-      default:
-        assertNever(
-          showBranchNameInRepoList,
-          `Unknown show branch name setting: ${showBranchNameInRepoList}`
-        )
-    }
+    return shouldShowRepositoryListBranchName(
+      item,
+      this.props.showBranchNameInRepoList
+    )
   }
 
   private renderItem = (item: IRepositoryListItem, matches: IMatches) => {
@@ -224,11 +297,15 @@ export class RepositoriesList extends React.Component<
       <RepositoryListItem
         key={item.id}
         repository={repository}
+        title={item.title}
         needsDisambiguation={item.needsDisambiguation}
         matches={matches}
         aheadBehind={item.aheadBehind}
         changedFilesCount={item.changedFilesCount}
         branchName={this.shouldShowBranchName(item) ? item.branchName : null}
+        worktreePathDisambiguation={item.worktreePathDisambiguation}
+        isNestedWorktree={item.isNestedWorktree}
+        isPrunableWorktree={item.isPrunableWorktree}
         worktree={item.worktree}
       />
     )
@@ -268,6 +345,10 @@ export class RepositoriesList extends React.Component<
     const uncommittedChangesTooltip = hasChanges
       ? `There are uncommitted changes in this repository.`
       : null
+    const prunableWorktreeTooltip = item.isPrunableWorktree
+      ? 'This worktree entry is stale and should be pruned.'
+      : null
+    const path = item.worktree?.path ?? repository.path
 
     const ahead = aheadBehind?.ahead ?? 0
     const behind = aheadBehind?.behind ?? 0
@@ -281,7 +362,7 @@ export class RepositoriesList extends React.Component<
         </div>
         <div>
           <div className="label">Path: </div>
-          {repository.path}
+          {path}
         </div>
         {branchName && (
           <div>
@@ -308,6 +389,16 @@ export class RepositoriesList extends React.Component<
               </span>
             </div>
             {uncommittedChangesTooltip}
+          </div>
+        )}
+        {prunableWorktreeTooltip && (
+          <div>
+            <div className="label">
+              <span className="prunable-indicator-wrapper">
+                <Octicon symbol={octicons.alert} />
+              </span>
+            </div>
+            {prunableWorktreeTooltip}
           </div>
         )}
       </div>
@@ -353,6 +444,22 @@ export class RepositoriesList extends React.Component<
   }
 
   private onItemClick = (item: IRepositoryListItem) => {
+    if (
+      item.isSyntheticWorktreeRoot &&
+      (item.worktree === null || item.sourceRepository === null)
+    ) {
+      return
+    }
+
+    if (item.isPrunableWorktree) {
+      void this.props.dispatcher.postError(
+        new Error(
+          'This worktree entry is stale. Use the context menu to prune stale worktrees.'
+        )
+      )
+      return
+    }
+
     const hasIndicator =
       item.changedFilesCount > 0 ||
       (item.aheadBehind !== null
@@ -363,13 +470,21 @@ export class RepositoriesList extends React.Component<
     // Each row maps to a specific worktree. Clicking a row switches to
     // its worktree, unless the row is already the checked-out one.
     // Switching worktrees already selects the corresponding repository
+    const worktreeSwitchRepository =
+      item.sourceRepository ??
+      (item.repository instanceof Repository ? item.repository : null)
+
     if (
       item.worktree !== null &&
-      item.repository instanceof Repository &&
-      normalizePath(item.worktree.path) !== normalizePath(item.repository.path)
+      worktreeSwitchRepository !== null &&
+      normalizePath(item.worktree.path) !==
+        normalizePath(worktreeSwitchRepository.path)
     ) {
       this.props.dispatcher.closeFoldout(FoldoutType.Repository)
-      this.props.dispatcher.switchWorktree(item.repository, item.worktree)
+      this.props.dispatcher.switchWorktree(
+        worktreeSwitchRepository,
+        item.worktree
+      )
       return
     }
 
@@ -382,9 +497,33 @@ export class RepositoriesList extends React.Component<
   ) => {
     event.preventDefault()
 
+    if (item.isSyntheticWorktreeRoot && item.worktree !== null) {
+      const isPinned = isRepositoryListItemPinned(
+        item,
+        this.state.pinnedRepositoriesIds,
+        this.props.repositories,
+        this.props.localRepositoryStateLookup
+      )
+
+      showContextualMenu(
+        generateSyntheticWorktreeRootContextMenu({
+          name: item.title,
+          path: item.worktree.path,
+          sourceRepository: item.sourceRepository,
+          isPinned,
+          onCopyRepoPath: path =>
+            this.props.dispatcher.copyPathToClipboard(path),
+          onPinRepository: this.onPinRepository,
+          onUnpinRepository: this.onUnpinRepository,
+        })
+      )
+      return
+    }
+
     if (
       item.worktree !== null &&
       item.worktree.type === 'linked' &&
+      item.isNestedWorktree &&
       item.repository instanceof Repository
     ) {
       showContextualMenu(
@@ -396,6 +535,9 @@ export class RepositoriesList extends React.Component<
           onCreateWorktree: this.onCreateWorktree,
           onRenameWorktree: this.onRenameWorktree,
           onDeleteWorktree: this.onDeleteWorktree,
+          onPruneStaleWorktrees: () => {
+            this.onPruneStaleWorktrees(item)
+          },
           onViewOnGitHub: this.props.onViewOnGitHub,
           onOpenWorktreeInNewWindow: this.onOpenWorktreeInNewWindow,
           onOpenInShell: this.props.onOpenInShell,
@@ -408,9 +550,12 @@ export class RepositoriesList extends React.Component<
       return
     }
 
-    const isPinned =
-      item.repository instanceof Repository &&
-      this.state.pinnedRepositoriesIds.includes(item.repository.id)
+    const isPinned = isRepositoryListItemPinned(
+      item,
+      this.state.pinnedRepositoriesIds,
+      this.props.repositories,
+      this.props.localRepositoryStateLookup
+    )
 
     const items = generateRepositoryListContextMenu({
       worktreePath: item.worktree?.path,
@@ -451,7 +596,32 @@ export class RepositoriesList extends React.Component<
     showContextualMenu(items)
   }
 
-  private getItemAriaLabel = (item: IRepositoryListItem) => item.repository.name
+  private onPruneStaleWorktrees = async (item: IRepositoryListItem) => {
+    const repository =
+      item.sourceRepository ??
+      (item.repository instanceof Repository ? item.repository : null)
+
+    if (repository === null) {
+      return
+    }
+
+    try {
+      await pruneWorktrees(repository)
+      await Promise.all(
+        getWorktreeFamilyRepositories(
+          repository,
+          this.props.repositories,
+          this.props.localRepositoryStateLookup
+        ).map(familyRepository =>
+          this.props.dispatcher.refreshRepository(familyRepository)
+        )
+      )
+    } catch (error) {
+      this.props.dispatcher.postError(error)
+    }
+  }
+
+  private getItemAriaLabel = (item: IRepositoryListItem) => item.title
   private getGroupAriaLabelGetter =
     (
       groups: ReadonlyArray<
@@ -465,7 +635,8 @@ export class RepositoriesList extends React.Component<
     let groups = this.getRepositoryGroups(
       this.props.repositories,
       this.props.localRepositoryStateLookup,
-      this.props.recentRepositories
+      this.props.recentRepositories,
+      this.props.showWorktreesInRepoList
     )
 
     if (!this.props.showRecentRepositories) {
@@ -499,6 +670,7 @@ export class RepositoriesList extends React.Component<
           selectedItem={selectedItem}
           filterText={this.props.filterText}
           onFilterTextChanged={this.props.onFilterTextChanged}
+          preserveItemOrderWhenFiltering={true}
           renderItem={this.renderItem}
           renderRowFocusTooltip={this.renderRowFocusTooltip}
           renderGroupHeader={this.renderGroupHeader}
@@ -780,7 +952,18 @@ export class RepositoriesList extends React.Component<
   }
 
   private onUnpinRepository = (repository: Repository) => {
-    removePinnedRepository(repository)
+    const repositoriesToUnpin = this.props.showWorktreesInRepoList
+      ? getWorktreeFamilyRepositories(
+          repository,
+          this.props.repositories,
+          this.props.localRepositoryStateLookup
+        )
+      : [repository]
+
+    for (const familyRepository of repositoriesToUnpin) {
+      removePinnedRepository(familyRepository)
+    }
+
     this.setState({ pinnedRepositoriesIds: getPinnedRepositories() })
   }
 }

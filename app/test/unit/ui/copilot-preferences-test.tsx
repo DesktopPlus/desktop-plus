@@ -24,7 +24,7 @@ import {
   type IBYOKProvider,
 } from '../../../src/lib/copilot/byok'
 import { Account } from '../../../src/models/account'
-import type { Model } from '@github/copilot-sdk/dist/generated/rpc'
+import type { CopilotModel as Model } from '../../../src/lib/copilot/model'
 import { setNumberFormatPreference } from '../../../src/models/formatting-preferences'
 
 interface IAccountOptions {

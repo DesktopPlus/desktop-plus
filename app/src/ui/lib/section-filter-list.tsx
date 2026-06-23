@@ -163,6 +163,13 @@ interface ISectionFilterListProps<T extends IFilterListItem, GroupIdentifier> {
   readonly renderNoItems?: () => JSX.Element | null
 
   /**
+   * Whether filtered results should preserve the incoming item order instead
+   * of being sorted by fuzzy score. Use this when item order carries hierarchy.
+   */
+  // eslint-disable-next-line react/no-unused-prop-types
+  readonly preserveItemOrderWhenFiltering?: boolean
+
+  /**
    * A reference to a TextBox that will be used to control this component.
    *
    * See https://github.com/desktop/desktop/issues/4317 for refactoring work to
@@ -708,6 +715,29 @@ export function getText<T extends IFilterListItem>(
   return item['text']
 }
 
+export function getFilteredItems<T extends IFilterListItem>(
+  filter: string,
+  items: ReadonlyArray<T>,
+  preserveItemOrderWhenFiltering?: boolean
+): ReadonlyArray<IMatch<T>> {
+  const filteredItems: ReadonlyArray<IMatch<T>> = filter
+    ? match(filter, items, getText)
+    : items.map(item => ({
+        score: 1,
+        matches: { title: [], subtitle: [] },
+        item,
+      }))
+
+  if (!filter || preserveItemOrderWhenFiltering !== true) {
+    return filteredItems
+  }
+
+  const order = new Map(items.map((item, index) => [item.id, index]))
+  return [...filteredItems].sort(
+    (x, y) => (order.get(x.item.id) ?? 0) - (order.get(y.item.id) ?? 0)
+  )
+}
+
 function getFirstVisibleRow<T extends IFilterListItem, GroupIdentifier>(
   rows: ReadonlyArray<ReadonlyArray<IFilterListRow<T, GroupIdentifier>>>
 ): RowIndexPath {
@@ -762,13 +792,11 @@ function createStateUpdate<T extends IFilterListItem, GroupIdentifier>(
 
   for (const [idx, group] of props.groups.entries()) {
     const groupRows = new Array<IFilterListRow<T, GroupIdentifier>>()
-    const items: ReadonlyArray<IMatch<T>> = filter
-      ? match(filter, group.items, getText)
-      : group.items.map(item => ({
-          score: 1,
-          matches: { title: [], subtitle: [] },
-          item,
-        }))
+    const items = getFilteredItems(
+      filter,
+      group.items,
+      props.preserveItemOrderWhenFiltering
+    )
 
     if (!items.length) {
       continue

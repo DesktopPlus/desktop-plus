@@ -48,6 +48,48 @@ describe('RepositoriesStore', () => {
     })
   })
 
+  describe('removing a repository by path', () => {
+    it('removes and returns the saved repository at the path', async () => {
+      const firstRepository = await repositoriesStore.addRepository(
+        '/some/cool/path',
+        '/some/cool/path/.git',
+        null
+      )
+      await repositoriesStore.addRepository(
+        '/some/other/path',
+        '/some/other/path/.git',
+        null
+      )
+
+      const removedRepository = await repositoriesStore.removeRepositoryForPath(
+        firstRepository.path
+      )
+      const repositories = await repositoriesStore.getAll()
+
+      assert.equal(removedRepository?.id, firstRepository.id)
+      assert.deepEqual(
+        repositories.map(repository => repository.path),
+        ['/some/other/path']
+      )
+    })
+
+    it('returns null when no repository is saved at the path', async () => {
+      await repositoriesStore.addRepository(
+        '/some/cool/path',
+        '/some/cool/path/.git',
+        null
+      )
+
+      const removedRepository = await repositoriesStore.removeRepositoryForPath(
+        '/missing/path'
+      )
+      const repositories = await repositoriesStore.getAll()
+
+      assert.equal(removedRepository, null)
+      assert.equal(repositories.length, 1)
+    })
+  })
+
   describe('updating a GitHub repository', () => {
     const apiRepo: IAPIFullRepository = {
       clone_url: 'https://github.com/my-user/my-repo',

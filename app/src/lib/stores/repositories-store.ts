@@ -301,6 +301,19 @@ export class RepositoriesStore extends TypedBaseStore<
     this.emitUpdatedRepositories()
   }
 
+  /** Remove and return the repository saved at the given path, if any. */
+  public async removeRepositoryForPath(
+    path: string
+  ): Promise<Repository | null> {
+    const repository = await this.getRepositoryForPath(path)
+    if (repository === null) {
+      return null
+    }
+
+    await this.removeRepository(repository)
+    return repository
+  }
+
   /** Update the repository's `missing` flag. */
   public async updateRepositoryMissing(
     repository: Repository,

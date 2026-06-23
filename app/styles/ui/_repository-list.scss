@@ -92,6 +92,16 @@
         vertical-align: text-bottom;
       }
     }
+
+    .worktree-path-disambiguation {
+      color: var(--text-secondary-color);
+      font-size: var(--font-size-sm);
+      margin-left: var(--spacing-half);
+      margin-right: var(--spacing-half);
+      @include ellipsis;
+      flex-shrink: 1;
+      min-width: 0;
+    }
   }
 
   .filter-list-group-header {
@@ -216,6 +226,19 @@
 
     .octicon {
       color: var(--tab-bar-active-color);
+      width: auto;
+    }
+  }
+
+  .prunable-indicator-wrapper {
+    display: flex;
+    min-width: 12px;
+    justify-content: center;
+    align-items: center;
+    margin-left: var(--spacing-half);
+
+    .octicon {
+      color: var(--toolbar-dropdown-text-warning-color);
       width: auto;
     }
   }

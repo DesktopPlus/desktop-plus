@@ -71,7 +71,16 @@ export interface ITextBoxProps {
   readonly onEnterPressed?: (text: string) => void
 
   /** The type of the input. Defaults to `text`. */
-  readonly type?: 'text' | 'search' | 'password' | 'email'
+  readonly type?: 'text' | 'search' | 'password' | 'email' | 'number'
+
+  /** Minimum value for numeric inputs. */
+  readonly min?: number | string
+
+  /** Maximum value for numeric inputs. */
+  readonly max?: number | string
+
+  /** Step value for numeric inputs. */
+  readonly step?: number | string
 
   /** The tab index of the input element. */
   readonly tabIndex?: number
@@ -217,12 +226,20 @@ export class TextBox extends React.Component<ITextBoxProps, ITextBoxState> {
     const value = event.currentTarget.value
     const isComposing =
       event.nativeEvent instanceof InputEvent && event.nativeEvent.isComposing
-    const cursorPosition = isComposing
-      ? undefined
-      : {
-          start: event.currentTarget.selectionStart ?? 0,
-          end: event.currentTarget.selectionEnd ?? 0,
-        }
+    const canTrackCursor = [
+      'text',
+      'search',
+      'url',
+      'tel',
+      'password',
+    ].includes(event.currentTarget.type)
+    const cursorPosition =
+      isComposing || !canTrackCursor
+        ? undefined
+        : {
+            start: event.currentTarget.selectionStart ?? 0,
+            end: event.currentTarget.selectionEnd ?? 0,
+          }
 
     // Even when the new value is '', we don't want to render the aria-live
     // message saying "input cleared", so we set valueCleared to false.
@@ -361,6 +378,9 @@ export class TextBox extends React.Component<ITextBoxProps, ITextBoxState> {
           disabled={this.props.disabled}
           readOnly={this.props.readOnly}
           type={this.props.type ?? 'text'}
+          min={this.props.min}
+          max={this.props.max}
+          step={this.props.step}
           placeholder={this.props.placeholder}
           value={this.state.value}
           onChange={this.onChange}

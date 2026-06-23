@@ -1,7 +1,5 @@
-import {
-  CopilotClient,
-  CopilotSession,
-  RuntimeConnection,
+import { CopilotClient, CopilotSession } from '@github/copilot-sdk'
+import type {
   AssistantMessageEvent,
   MessageOptions,
   SessionConfig,
@@ -42,9 +40,9 @@ import { IRepoRulesMetadataRule } from '../../models/repo-rules'
 import { pathExists } from '../path-exists'
 import { enableCopilotSdkCommitMessageGeneration } from '../feature-flag'
 import type {
-  Model,
-  ModelBillingTokenPrices,
-} from '@github/copilot-sdk/dist/generated/rpc'
+  CopilotModel as Model,
+  ICopilotModelBillingTokenPrices,
+} from '../copilot/model'
 import { isGHE } from '../endpoint-capabilities'
 
 /** The default model ID used for Copilot commit message generation. */
@@ -401,7 +399,9 @@ function getModelBillingKind(
   return models.some(m => m.billing?.tokenPrices !== undefined) ? 'usage' : null
 }
 
-function getTokenPriceCost(tokenPrices: ModelBillingTokenPrices): number {
+function getTokenPriceCost(
+  tokenPrices: ICopilotModelBillingTokenPrices
+): number {
   const { batchSize, inputPrice, outputPrice } = tokenPrices
   if (
     batchSize === undefined ||
@@ -754,11 +754,12 @@ export class CopilotStore extends BaseStore {
       : indexPath
 
     return new CopilotClient({
-      connection: RuntimeConnection.forStdio({
-        path: await getCopilotCLIPath(),
-        args: ['--eval', `import '${importSpecifier}'`, '--'],
-      }),
+      cliPath: await getCopilotCLIPath(),
+      cliArgs: ['--eval', `import '${importSpecifier}'`, '--'],
+      cwd: repositoryPath,
+      useStdio: true,
       env: {
+        ...process.env,
         ELECTRON_RUN_AS_NODE: '1',
         COPILOT_RUN_APP: '1',
         GH_HOST: getCopilotGHHost(account),
@@ -766,7 +767,6 @@ export class CopilotStore extends BaseStore {
           __DEV__ ? '-dev' : ''
         }`,
       },
-      workingDirectory: repositoryPath,
       gitHubToken: account.token,
     })
   }
@@ -1475,14 +1475,14 @@ export class CopilotStore extends BaseStore {
 
     try {
       await client.start()
-      // HACK(copilot-sdk): using `Model` (from RPC API) instead of `ModelInfo`
-      // in order to get the new billing metadata fields that are not available
-      // yet in the `ModelInfo` type returned by `CopilotClient.listModels()`.
+      // HACK(copilot-sdk): cast to Desktop's extended model type in order to
+      // get the new billing metadata fields that are not available yet in the
+      // `ModelInfo` type returned by `CopilotClient.listModels()`.
       // This is safe because CopilotClient just force-casts the RPC response
       // (a list of `Model`) to `ModelInfo`, so the underlying data is the same
       // and we just get more fields by using the RPC type directly.
       // We can switch back to `ModelInfo` once the SDK updates its types.
-      return await client.listModels()
+      return (await client.listModels()) as ReadonlyArray<Model>
     } finally {
       await this.stopClient(client)
     }

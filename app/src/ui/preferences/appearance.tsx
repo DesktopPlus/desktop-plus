@@ -16,6 +16,7 @@ import { ShowBranchNameInRepoListSetting } from '../../models/show-branch-name-i
 import { parseEnumValue } from '../../lib/enum'
 import { assertNever } from '../../lib/fatal-error'
 import { BranchSortOrder } from '../../models/branch-sort-order'
+import { TextBox } from '../lib/text-box'
 import {
   availableDiffFontSizes,
   defaultDiffFontFamily,
@@ -51,6 +52,8 @@ interface IAppearanceProps {
   readonly onTitleBarStyleChanged: (titleBarStyle: TitleBarStyle) => void
   readonly showRecentRepositories: boolean
   readonly onShowRecentRepositoriesChanged: (show: boolean) => void
+  readonly recentRepositoriesLength: number
+  readonly onRecentRepositoriesLengthChanged: (length: number) => void
   readonly showWorktrees: boolean
   readonly onShowWorktreesChanged: (show: boolean) => void
   readonly showWorktreesInRepoList: boolean
@@ -83,6 +86,7 @@ interface IAppearanceState {
   readonly availableDiffFontFamilies: ReadonlyArray<DiffFontFamily>
   readonly titleBarStyle: TitleBarStyle
   readonly showRecentRepositories: boolean
+  readonly recentRepositoriesLength: number
   readonly showWorktrees: boolean
   readonly showWorktreesInRepoList: boolean
   readonly showCompareTab: boolean
@@ -122,6 +126,7 @@ export class Appearance extends React.Component<
           : [props.selectedDiffFontFamily, defaultDiffFontFamily],
       titleBarStyle: props.titleBarStyle,
       showRecentRepositories: props.showRecentRepositories,
+      recentRepositoriesLength: props.recentRepositoriesLength,
       showWorktrees: props.showWorktrees,
       showWorktreesInRepoList: props.showWorktreesInRepoList,
       showCompareTab: props.showCompareTab,
@@ -161,6 +166,7 @@ export class Appearance extends React.Component<
       selectedDiffFontFamily,
       showWorktrees: this.props.showWorktrees,
       showWorktreesInRepoList: this.props.showWorktreesInRepoList,
+      recentRepositoriesLength: this.props.recentRepositoriesLength,
       showCompareTab: this.props.showCompareTab,
       showConventionalCommitBadges: this.props.showConventionalCommitBadges,
     })
@@ -203,6 +209,16 @@ export class Appearance extends React.Component<
     const show = event.currentTarget.checked
     this.setState({ showRecentRepositories: show })
     this.props.onShowRecentRepositoriesChanged(show)
+  }
+
+  private onRecentRepositoriesLengthChanged = (value: string) => {
+    const length = parseInt(value, 10)
+    if (!Number.isFinite(length)) {
+      return
+    }
+
+    this.setState({ recentRepositoriesLength: length })
+    this.props.onRecentRepositoriesLengthChanged(length)
   }
 
   private onShowWorktreesChanged = (
@@ -458,6 +474,16 @@ export class Appearance extends React.Component<
               : CheckboxValue.Off
           }
           onChange={this.onShowRecentRepositoriesChanged}
+        />
+        <TextBox
+          label="Recent repositories count"
+          type="number"
+          min={1}
+          max={50}
+          step={1}
+          value={this.state.recentRepositoriesLength.toString()}
+          onValueChanged={this.onRecentRepositoriesLengthChanged}
+          disabled={!this.state.showRecentRepositories}
         />
         <Select
           label="Show current branch name next to repository name"

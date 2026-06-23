@@ -167,6 +167,7 @@ import {
   ICompareFormUpdate,
   ICompareToBranch,
   IDisplayHistory,
+  IRecentRepositorySelection,
   PossibleSelections,
   RepositorySectionTab,
   SelectionType,
@@ -288,7 +289,10 @@ import { hasShownWelcomeFlow, markWelcomeFlowComplete } from '../welcome'
 import { WindowState } from '../window-state'
 import { TypedBaseStore } from './base-store'
 import { MergeTreeResult } from '../../models/merge'
-import { promiseWithMinimumTimeout } from '../promise'
+import {
+  parallelWithConcurrencyLimit,
+  promiseWithMinimumTimeout,
+} from '../promise'
 import { BackgroundFetcher } from './helpers/background-fetcher'
 import { RepositoryStateCache } from './repository-state-cache'
 import {
@@ -437,6 +441,7 @@ import {
 import { updateStore } from '../../ui/lib/update-store'
 import { startTimer } from '../../ui/lib/timing'
 import { BypassReasonType } from '../../ui/secret-scanning/bypass-push-protection-dialog'
+import { normalizePath } from '../helpers/path'
 import {
   selectReferencedContext,
   fallbackReferencedContext,
@@ -457,7 +462,7 @@ import {
 } from '../pull-request-refs'
 import { resolveWithin } from '../path'
 import { WorktreeEntry } from '../../models/worktree'
-import type { Model } from '@github/copilot-sdk/dist/generated/rpc'
+import type { CopilotModel as Model } from '../copilot/model'
 
 const LastSelectedRepositoryIDKey = 'last-selected-repository-id'
 
@@ -469,11 +474,66 @@ const LastSelectedRepositoryIDKey = 'last-selected-repository-id'
 const MaxPullRequestLookups = 10
 
 const RecentRepositoriesKey = 'recently-selected-repositories'
+const RecentRepositorySelectionsKey = 'recently-selected-repository-selections'
+const RecentRepositoriesLengthKey = 'recent-repositories-length'
 /**
  *  maximum number of repositories shown in the "Recent" repositories group
  *  in the repository switcher dropdown
  */
-const RecentRepositoriesLength = 3
+export const recentRepositoriesLengthDefault = 3
+
+const constrainRecentRepositoriesLength = (value: number): number => {
+  if (!Number.isFinite(value)) {
+    return recentRepositoriesLengthDefault
+  }
+
+  return Math.max(1, Math.min(50, Math.round(value)))
+}
+
+const isRecentRepositorySelection = (
+  value: unknown
+): value is IRecentRepositorySelection => {
+  if (value === null || typeof value !== 'object') {
+    return false
+  }
+
+  const selection = value as Partial<IRecentRepositorySelection>
+  return (
+    typeof selection.repositoryId === 'number' &&
+    Number.isFinite(selection.repositoryId) &&
+    typeof selection.path === 'string' &&
+    selection.path.length > 0
+  )
+}
+
+const loadRecentRepositorySelections = (
+  repositories: ReadonlyArray<Repository>,
+  length: number
+): ReadonlyArray<IRecentRepositorySelection> => {
+  const storedSelections = getObject<ReadonlyArray<unknown>>(
+    RecentRepositorySelectionsKey
+  )
+
+  if (Array.isArray(storedSelections)) {
+    return storedSelections.filter(isRecentRepositorySelection).slice(0, length)
+  }
+
+  const repositoryById = new Map(
+    repositories.map(repository => [repository.id, repository])
+  )
+
+  return getNumberArray(RecentRepositoriesKey)
+    .map(repositoryId => {
+      const repository = repositoryById.get(repositoryId)
+      return repository === undefined
+        ? null
+        : { repositoryId, path: repository.path }
+    })
+    .filter(
+      (selection): selection is IRecentRepositorySelection => selection !== null
+    )
+    .slice(0, length)
+}
 
 const defaultSidebarWidth: number = 250
 const sidebarWidthConfigKey: string = 'sidebar-width'
@@ -554,6 +614,7 @@ const shellKey = 'shell'
 const showRecentRepositoriesKey = 'show-recent-repositories'
 const showWorktreesKey = 'show-worktrees-foldout'
 const showWorktreesInRepoListKey = 'show-worktrees-in-repo-list'
+const showWorktreesInRepoListDefault = true
 const showCompareTabKey = 'show-compare-tab'
 const showCompareTabDefault = true
 const showConventionalCommitBadgesKey = 'show-conventional-commit-badges'
@@ -621,7 +682,9 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
   private accounts: ReadonlyArray<Account> = new Array<Account>()
   private repositories: ReadonlyArray<Repository> = new Array<Repository>()
-  private recentRepositories: ReadonlyArray<number> = new Array<number>()
+  private recentRepositories: ReadonlyArray<IRecentRepositorySelection> =
+    new Array<IRecentRepositorySelection>()
+  private recentRepositoriesLength: number = recentRepositoriesLengthDefault
 
   private selectedRepository: Repository | CloningRepository | null = null
 
@@ -744,7 +807,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
   private titleBarStyle: TitleBarStyle = __WIN32__ ? 'custom' : 'native'
   private showRecentRepositories: boolean = true
   private showWorktrees: boolean = false
-  private showWorktreesInRepoList: boolean = false
+  private showWorktreesInRepoList: boolean = showWorktreesInRepoListDefault
   private showCompareTab: boolean = showCompareTabDefault
   private showConventionalCommitBadges: boolean =
     showConventionalCommitBadgesDefault
@@ -878,9 +941,16 @@ export class AppStore extends TypedBaseStore<IAppState> {
       getBoolean(repositoryIndicatorsEnabledKey) ?? true
 
     this.showRecentRepositories = getBoolean(showRecentRepositoriesKey) ?? true
+    this.recentRepositoriesLength = constrainRecentRepositoriesLength(
+      getNumber(RecentRepositoriesLengthKey, recentRepositoriesLengthDefault)
+    )
+    this.recentRepositories = loadRecentRepositorySelections(
+      this.repositories,
+      this.recentRepositoriesLength
+    )
     this.showWorktrees = getBoolean(showWorktreesKey) ?? true
     this.showWorktreesInRepoList =
-      getBoolean(showWorktreesInRepoListKey) ?? false
+      getBoolean(showWorktreesInRepoListKey) ?? showWorktreesInRepoListDefault
     this.showCompareTab = getBoolean(showCompareTabKey, showCompareTabDefault)
     this.showConventionalCommitBadges = getBoolean(
       showConventionalCommitBadgesKey,
@@ -1326,6 +1396,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       accounts: this.accounts,
       repositories,
       recentRepositories: this.recentRepositories,
+      recentRepositoriesLength: this.recentRepositoriesLength,
       localRepositoryStateLookup: this.localRepositoryStateLookup,
       windowState: this.windowState,
       windowZoomFactor: this.windowZoomFactor,
@@ -2575,11 +2646,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       setNumber(LastSelectedRepositoryIDKey, repository.id)
     }
 
-    const previousRepositoryId = previouslySelectedRepository
-      ? previouslySelectedRepository.id
-      : null
-
-    this.updateRecentRepositories(previousRepositoryId, repository.id)
+    this.updateRecentRepositories(previouslySelectedRepository, repository)
 
     // if repository might be marked missing, try checking if it has been restored
     const refreshedRepository = await this.recoverMissingRepository(repository)
@@ -2614,34 +2681,100 @@ export class AppStore extends TypedBaseStore<IAppState> {
     )
   }
 
-  // update the stored list of recently opened repositories
-  private updateRecentRepositories(
-    previousRepositoryId: number | null,
-    currentRepositoryId: number
+  private getRecentRepositorySelection(
+    repository: Repository | CloningRepository | null
+  ): IRecentRepositorySelection | null {
+    return repository instanceof Repository
+      ? { repositoryId: repository.id, path: repository.path }
+      : null
+  }
+
+  private areRecentRepositorySelectionsEqual(
+    first: IRecentRepositorySelection,
+    second: IRecentRepositorySelection
+  ): boolean {
+    return (
+      first.repositoryId === second.repositoryId &&
+      normalizePath(first.path) === normalizePath(second.path)
+    )
+  }
+
+  private setRecentRepositories(
+    recentRepositories: ReadonlyArray<IRecentRepositorySelection>
   ) {
-    // No need to update the recent repositories if the selected repository is
-    // the same as the old one (this could happen when the alias of the selected
-    // repository is changed).
-    if (previousRepositoryId === currentRepositoryId) {
+    const slicedRecentRepositories = recentRepositories.slice(
+      0,
+      this.recentRepositoriesLength
+    )
+    setObject(RecentRepositorySelectionsKey, slicedRecentRepositories)
+    setNumberArray(
+      RecentRepositoriesKey,
+      slicedRecentRepositories.map(selection => selection.repositoryId)
+    )
+    this.recentRepositories = slicedRecentRepositories
+    this.notificationsStore.setRecentRepositories(
+      this.repositories.filter(r =>
+        this.recentRepositories.some(
+          selection => selection.repositoryId === r.id
+        )
+      )
+    )
+    this.emitUpdate()
+  }
+
+  private loadRecentRepositoriesFromStorage() {
+    this.recentRepositories = loadRecentRepositorySelections(
+      this.repositories,
+      this.recentRepositoriesLength
+    )
+    setObject(RecentRepositorySelectionsKey, this.recentRepositories)
+    setNumberArray(
+      RecentRepositoriesKey,
+      this.recentRepositories.map(selection => selection.repositoryId)
+    )
+    this.notificationsStore.setRecentRepositories(
+      this.repositories.filter(r =>
+        this.recentRepositories.some(
+          selection => selection.repositoryId === r.id
+        )
+      )
+    )
+  }
+
+  // update the stored list of recently opened repository/worktree selections
+  private updateRecentRepositories(
+    previousRepository: Repository | CloningRepository | null,
+    currentRepository: Repository
+  ) {
+    const previousSelection =
+      this.getRecentRepositorySelection(previousRepository)
+    const currentSelection =
+      this.getRecentRepositorySelection(currentRepository)
+
+    if (previousSelection === null || currentSelection === null) {
       return
     }
 
-    const recentRepositories = getNumberArray(RecentRepositoriesKey).filter(
-      el => el !== currentRepositoryId && el !== previousRepositoryId
-    )
-    if (previousRepositoryId !== null) {
-      recentRepositories.unshift(previousRepositoryId)
+    // No need to update the recent repositories if the selected repository is
+    // the same as the old one (this could happen when the alias of the selected
+    // repository is changed).
+    if (
+      this.areRecentRepositorySelectionsEqual(
+        previousSelection,
+        currentSelection
+      )
+    ) {
+      return
     }
-    const slicedRecentRepositories = recentRepositories.slice(
-      0,
-      RecentRepositoriesLength
+
+    const recentRepositories = this.recentRepositories.filter(
+      selection =>
+        !this.areRecentRepositorySelectionsEqual(selection, currentSelection) &&
+        !this.areRecentRepositorySelectionsEqual(selection, previousSelection)
     )
-    setNumberArray(RecentRepositoriesKey, slicedRecentRepositories)
-    this.recentRepositories = slicedRecentRepositories
-    this.notificationsStore.setRecentRepositories(
-      this.repositories.filter(r => this.recentRepositories.includes(r.id))
-    )
-    this.emitUpdate()
+    recentRepositories.unshift(previousSelection)
+
+    this.setRecentRepositories(recentRepositories)
   }
 
   // finish `_selectRepository`s refresh tasks
@@ -2876,6 +3009,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
     this.accounts = accounts
     this.repositories = repositories
+    this.loadRecentRepositoriesFromStorage()
 
     this.updateRepositorySelectionAfterRepositoriesChanged()
 
@@ -3136,6 +3270,12 @@ export class AppStore extends TypedBaseStore<IAppState> {
     this.emitUpdateNow()
 
     this.accountsStore.refresh()
+
+    if (this.showWorktreesInRepoList) {
+      this.refreshAllWorktreesForRepoList().catch(e =>
+        log.error('Failed to refresh repository list worktrees at startup', e)
+      )
+    }
 
     this.updateMenuLabelsForSelectedRepository()
   }
@@ -4818,6 +4958,21 @@ export class AppStore extends TypedBaseStore<IAppState> {
     this.emitUpdate()
   }
 
+  public _setRecentRepositoriesLength(recentRepositoriesLength: number) {
+    const constrainedLength = constrainRecentRepositoriesLength(
+      recentRepositoriesLength
+    )
+
+    if (this.recentRepositoriesLength === constrainedLength) {
+      return
+    }
+
+    this.recentRepositoriesLength = constrainedLength
+    setNumber(RecentRepositoriesLengthKey, constrainedLength)
+
+    this.setRecentRepositories(this.recentRepositories)
+  }
+
   public _setShowWorktrees(showWorktrees: boolean) {
     if (this.showWorktrees === showWorktrees) {
       return
@@ -4844,22 +4999,29 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
   private async refreshAllWorktreesForRepoList(): Promise<void> {
     const lookup = this.localRepositoryStateLookup
+    const repositories = this.repositories.filter(
+      repository => !repository.missing
+    )
 
-    for (const repository of this.repositories) {
-      if (repository.missing) {
-        continue
-      }
+    await parallelWithConcurrencyLimit(
+      repositories,
+      async repository => {
+        const worktrees = await this.loadWorktreesForRepoList(repository)
+        const existing = lookup.get(repository.id)
+        lookup.set(repository.id, {
+          aheadBehind: existing?.aheadBehind ?? null,
+          changedFilesCount: existing?.changedFilesCount ?? 0,
+          branchName: existing?.branchName ?? null,
+          defaultBranchName: existing?.defaultBranchName ?? null,
+          worktrees,
+        })
 
-      const worktrees = await this.loadWorktreesForRepoList(repository)
-      const existing = lookup.get(repository.id)
-      lookup.set(repository.id, {
-        aheadBehind: existing?.aheadBehind ?? null,
-        changedFilesCount: existing?.changedFilesCount ?? 0,
-        branchName: existing?.branchName ?? null,
-        defaultBranchName: existing?.defaultBranchName ?? null,
-        worktrees,
-      })
-    }
+        if (worktrees.length > 1) {
+          this.emitUpdate()
+        }
+      },
+      4
+    )
 
     this.emitUpdate()
   }
@@ -7062,6 +7224,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       return
     }
 
+    await this.repositoriesStore.removeRepositoryForPath(worktreePath)
     await this._refreshWorktrees(repository)
     this.statsStore.increment('worktreeDeletedCount')
   }
