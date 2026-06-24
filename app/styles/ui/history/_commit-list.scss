@@ -221,7 +221,8 @@
   color: var(--list-item-badge-color);
   background: var(--list-item-badge-background-color);
 
-  &[data-cc-type='feat'] {
+  &[data-cc-type='feat'],
+  &[data-cc-type='feature'] {
     background: #a2efde;
     color: #1f2328;
   }
@@ -232,7 +233,8 @@
     color: #ffffff;
   }
   &[data-cc-type='docs'],
-  &[data-cc-type='doc'] {
+  &[data-cc-type='doc'],
+  &[data-cc-type='documentation'] {
     background: #0570bd;
     color: #ffffff;
   }
@@ -255,6 +257,7 @@
   }
   &[data-cc-type='chore'],
   &[data-cc-type='temp'],
+  &[data-cc-type='tmp'],
   &[data-cc-type='wip'] {
     background: #d4d4d4;
     color: #1f2328;
@@ -272,17 +275,23 @@
     background: #b60205;
     color: #ffffff;
   }
-  &[data-cc-type='perf'] {
+  &[data-cc-type='perf'],
+  &[data-cc-type='performance'] {
     background: rgb(253, 215, 65);
     color: #1f2328;
   }
   &[data-cc-type='deps'],
-  &[data-cc-type='config'] {
+  &[data-cc-type='dependency'],
+  &[data-cc-type='dependencies'],
+  &[data-cc-type='config'],
+  &[data-cc-type='configuration'] {
     background: #bfd4f2;
     color: #1f2328;
   }
   &[data-cc-type='infra'],
-  &[data-cc-type='ops'] {
+  &[data-cc-type='infrastructure'],
+  &[data-cc-type='ops'],
+  &[data-cc-type='operations'] {
     background: rgb(253, 237, 175);
     color: #1f2328;
   }
