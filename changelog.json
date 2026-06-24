@@ -1,7 +1,7 @@
 {
   "releases": {
     "3.6.0": [
-      "[New] Git worktree support for managing multiple working directories of the same repository - #22102",
+      "[New] Git worktree support for managing multiple working directories of the same repository - #22102. Thanks @devxoul!",
       "[New] Resolve merge conflicts with Copilot - #22265",
       "[Fixed] Recover conflict dialog from permanently frozen state when conflict state becomes invalid, preventing users from needing to restart the app - #22348",
       "[Added] Allow users to stop an ongoing request to generate a commit message with Copilot - #22324. Thanks @say25!",
