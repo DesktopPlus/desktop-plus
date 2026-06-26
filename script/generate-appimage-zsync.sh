@@ -20,7 +20,7 @@ else
   exit 1
 fi
 
-REPO_OWNER="DesktopPlus"
+REPO_OWNER="desktop-plus"
 REPO_NAME="desktop-plus"
 RELEASES_ZSYNC_PATTERN="DesktopPlus-*-linux-$FILENAME_ARCH_PART.AppImage.zsync"
 

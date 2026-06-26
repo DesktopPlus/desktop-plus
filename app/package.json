@@ -9,7 +9,7 @@
   "main": "./main.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/DesktopPlus/desktop-plus.git"
+    "url": "https://github.com/desktop-plus/desktop-plus.git"
   },
   "description": "Simple collaboration from your desktop",
   "author": {

@@ -12,34 +12,34 @@
     <p>
       This is an up-to-date fork of GitHub Desktop, with many quality of life improvements and advanced features for power users.
     </p>
-    <p>See https://github.com/DesktopPlus/desktop-plus for a full list of added features.</p>
+    <p>See https://github.com/desktop-plus/desktop-plus for a full list of added features.</p>
   </description>
-  <url type="homepage">https://github.com/DesktopPlus/desktop-plus</url>
-  <url type="vcs-browser">https://github.com/DesktopPlus/desktop-plus</url>
-  <url type="bugtracker">https://github.com/DesktopPlus/desktop-plus/issues</url>
+  <url type="homepage">https://github.com/desktop-plus/desktop-plus</url>
+  <url type="vcs-browser">https://github.com/desktop-plus/desktop-plus</url>
+  <url type="bugtracker">https://github.com/desktop-plus/desktop-plus/issues</url>
   <launchable type="desktop-id">io.github.pol_rivero.github-desktop-plus.desktop</launchable>
   <screenshots>
     <screenshot type="default">
-      <image>https://raw.githubusercontent.com/DesktopPlus/desktop-plus/fd22fd8dca8dc59f2a9329d35618a36da55980e7/docs/assets/flathub/search.webp</image>
+      <image>https://raw.githubusercontent.com/desktop-plus/desktop-plus/fd22fd8dca8dc59f2a9329d35618a36da55980e7/docs/assets/flathub/search.webp</image>
       <caption>Search for commits by title, message, tag, or hash</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/DesktopPlus/desktop-plus/fd22fd8dca8dc59f2a9329d35618a36da55980e7/docs/assets/flathub/stashes.webp</image>
+      <image>https://raw.githubusercontent.com/desktop-plus/desktop-plus/fd22fd8dca8dc59f2a9329d35618a36da55980e7/docs/assets/flathub/stashes.webp</image>
       <caption>Create several stashes per branch</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/DesktopPlus/desktop-plus/fd22fd8dca8dc59f2a9329d35618a36da55980e7/docs/assets/flathub/push.webp</image>
+      <image>https://raw.githubusercontent.com/desktop-plus/desktop-plus/fd22fd8dca8dc59f2a9329d35618a36da55980e7/docs/assets/flathub/push.webp</image>
       <caption>Easily identify unpushed branches</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/DesktopPlus/desktop-plus/fd22fd8dca8dc59f2a9329d35618a36da55980e7/docs/assets/flathub/up-to-date.webp</image>
+      <image>https://raw.githubusercontent.com/desktop-plus/desktop-plus/fd22fd8dca8dc59f2a9329d35618a36da55980e7/docs/assets/flathub/up-to-date.webp</image>
       <caption>...and always up to date with the upstream, ensuring you get the latest features from the official GitHub Desktop app.</caption>
     </screenshot>
   </screenshots>
   <content_rating type="oars-1.1" />
   <releases>
     <release version="[VERSION]" date="[DATE]">
-      <url>https://github.com/DesktopPlus/desktop-plus/releases/tag/v[VERSION]</url>
+      <url>https://github.com/desktop-plus/desktop-plus/releases/tag/v[VERSION]</url>
     </release>
   </releases>
 </component>

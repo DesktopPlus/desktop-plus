@@ -8,9 +8,9 @@ import { rename } from 'fs-extra'
 
 import { getVersion } from '../app/package-info'
 import {
-  getDistPath,
-  getDistRoot,
-  getArchitectureForFileName,
+    getDistPath,
+    getDistRoot,
+    getArchitectureForFileName,
 } from './dist-info'
 
 function getArchitecture() {
@@ -61,7 +61,7 @@ const options: DebianOptions = {
     'GitHub Desktop fork with advanced functionality and improvements.',
   section: 'GNOME;GTK;Development',
   priority: 'extra',
-  homepage: 'https://github.com/DesktopPlus/desktop-plus',
+  homepage: 'https://github.com/desktop-plus/desktop-plus',
   depends: [
     // Desktop-specific dependencies
     'libcurl3 | libcurl4',

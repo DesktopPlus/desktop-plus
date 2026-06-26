@@ -572,7 +572,7 @@ export function buildDefaultMenuTemplate({
     click() {
       shell
         .openExternal(
-          'https://github.com/DesktopPlus/desktop-plus/issues/new/choose'
+          'https://github.com/desktop-plus/desktop-plus/issues/new/choose'
         )
         .catch(err => log.error('Failed opening issue creation page', err))
     },

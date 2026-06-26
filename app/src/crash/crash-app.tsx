@@ -42,7 +42,7 @@ const BottomImageUri = encodePathAsUrl(
   'static/welcome-illustration-left-bottom.svg'
 )
 
-const issuesUri = 'https://github.com/DesktopPlus/desktop-plus/issues'
+const issuesUri = 'https://github.com/desktop-plus/desktop-plus/issues'
 
 /**
  * Formats an error by attempting to strip out user-identifiable information

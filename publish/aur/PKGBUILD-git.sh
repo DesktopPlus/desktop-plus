@@ -11,7 +11,7 @@ pkgver=0
 pkgrel=1
 pkgdesc="GitHub Desktop fork with extra features and improvements (git version)."
 arch=('x86_64' 'aarch64')
-url="https://github.com/DesktopPlus/desktop-plus"
+url="https://github.com/desktop-plus/desktop-plus"
 license=('MIT')
 provides=(${_pkgname})
 conflicts=(${_pkgname})
@@ -33,7 +33,7 @@ makedepends=(python-setuptools
              util-linux
              xorg-server-xvfb
              yarn)
-source=("$pkgname::git+https://github.com/DesktopPlus/desktop-plus.git"
+source=("$pkgname::git+https://github.com/desktop-plus/desktop-plus.git"
         'git+https://github.com/github/gemoji.git'
         'git+https://github.com/github/gitignore.git'
         'git+https://github.com/github/choosealicense.com.git'

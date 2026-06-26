@@ -115,7 +115,7 @@ To update, run `winget upgrade polrivero.GitHubDesktopPlus` or `winget upgrade -
 
 #### Manual download (Not recommended)
 
-Download and execute the installer from the [releases page](https://github.com/DesktopPlus/desktop-plus/releases/latest).
+Download and execute the installer from the [releases page](https://github.com/desktop-plus/desktop-plus/releases/latest).
 
 | | **64-bit x86** | **64-bit ARM** |
 | --- | --- | --- |
@@ -146,7 +146,7 @@ Make sure to run `brew update` regularly to get the latest updates for Desktop P
 
 #### Manual download (Not recommended)
 
-Download and extract the ZIP file from the [releases page](https://github.com/DesktopPlus/desktop-plus/releases/latest). Click the app file to run it.  
+Download and extract the ZIP file from the [releases page](https://github.com/desktop-plus/desktop-plus/releases/latest). Click the app file to run it.  
 If you encounter the error "Apple could not verify this app is free of malware", go to "System Settings" > "Privacy & Security", scroll down to "Security" and click "Open Anyway" on "Desktop Plus".
 
 | **64-bit x86** | **64-bit ARM (Apple Silicon)** |
@@ -299,7 +299,7 @@ appman install github-desktop-plus
 
 #### Manual download (Not recommended)
 
-Download the AppImage from the [releases page](https://github.com/DesktopPlus/desktop-plus/releases/latest):
+Download the AppImage from the [releases page](https://github.com/desktop-plus/desktop-plus/releases/latest):
 
 | **64-bit x86** | **64-bit ARM** |
 | --- | --- |

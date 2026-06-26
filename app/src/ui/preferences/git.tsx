@@ -91,7 +91,7 @@ export class Git extends React.Component<IGitProps> {
             version managers, linters, or other tools your hooks rely on). If
             your hooks depend on such programs, install a native package
             instead. See the{' '}
-            <LinkButton uri="https://github.com/DesktopPlus/desktop-plus#download-and-installation-">
+            <LinkButton uri="https://github.com/desktop-plus/desktop-plus#download-and-installation-">
               installation instructions
             </LinkButton>
             .

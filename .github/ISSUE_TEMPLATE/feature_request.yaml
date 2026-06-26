@@ -4,7 +4,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for submitting a feature request! This issue tracker is for [Desktop Plus](https://github.com/DesktopPlus/desktop-plus). Please search the issue tracker to see if there is an existing issue for the feature you are requesting.
+        Thanks for submitting a feature request! This issue tracker is for [Desktop Plus](https://github.com/desktop-plus/desktop-plus). Please search the issue tracker to see if there is an existing issue for the feature you are requesting.
   - type: textarea
     id: the-feature-request
     attributes:

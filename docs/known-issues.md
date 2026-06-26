@@ -32,13 +32,13 @@ Each known issue links off to an existing GitHub issue. If you have additional q
 
 ### My issue is not listed here?
 
-Please check the [open](https://github.com/DesktopPlus/desktop-plus/issues) and [closed](https://github.com/DesktopPlus/desktop-plus/issues?q=is%3Aissue%20state%3Aclosed) bugs in the issue tracker for the details of your bug. If you can't find it, or if you're not sure, open a [new issue](https://github.com/DesktopPlus/desktop-plus/issues/new?template=bug_report.yaml).
+Please check the [open](https://github.com/desktop-plus/desktop-plus/issues) and [closed](https://github.com/desktop-plus/desktop-plus/issues?q=is%3Aissue%20state%3Aclosed) bugs in the issue tracker for the details of your bug. If you can't find it, or if you're not sure, open a [new issue](https://github.com/desktop-plus/desktop-plus/issues/new?template=bug_report.yaml).
 
 ## macOS
 
 ### 'Apple could not verify this app is free of malware' error when launching the app
 
-Related issue: [#33](https://github.com/DesktopPlus/desktop-plus/issues/33)
+Related issue: [#33](https://github.com/desktop-plus/desktop-plus/issues/33)
 
 This error is caused by the app not being notarized by Apple, as notarization requires a paid Apple Developer account.
 
@@ -243,7 +243,7 @@ If you see an error that says "Not enough resources are available to process thi
 
 ### I cannot sign in using "Continue with browser"
 
-Related issue: [#54](https://github.com/DesktopPlus/desktop-plus/issues/54)
+Related issue: [#54](https://github.com/desktop-plus/desktop-plus/issues/54)
 
 First of all, make sure you are not using the AppImage package, as it requires some manual setup for the sign-in feature to work. Instead, I strongly recommend using your distribution's native package manager (APT, RPM and AUR packages above) or Flatpak.
 

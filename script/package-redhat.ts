@@ -8,9 +8,9 @@ import { readFile, writeFile, rename } from 'fs-extra'
 
 import { getVersion } from '../app/package-info'
 import {
-  getArchitectureForFileName,
-  getDistPath,
-  getDistRoot,
+    getArchitectureForFileName,
+    getDistPath,
+    getDistRoot,
 } from './dist-info'
 
 function getArchitecture() {
@@ -74,7 +74,7 @@ const options: RedhatOptions = {
     post: 'script/resources/rpm/post.sh',
     preun: 'script/resources/rpm/preun.sh',
   },
-  homepage: 'https://github.com/DesktopPlus/desktop-plus',
+  homepage: 'https://github.com/desktop-plus/desktop-plus',
   mimeType: [
     'x-scheme-handler/x-github-client',
     'x-scheme-handler/x-github-desktop-auth',

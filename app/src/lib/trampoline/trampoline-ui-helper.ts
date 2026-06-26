@@ -121,8 +121,8 @@ class TrampolineUIHelper {
   public async getLoginForRepositoryPath(path: string): Promise<string | null> {
     const repo = await this.dispatcher.getRepositoryForPath(path)
     if (repo) {
-      // Ugly hack to avoid infinite loading in Windows (https://github.com/DesktopPlus/desktop-plus/issues/119)
-      // Additionally, don't await this call, as it could fail and we don't want to show an error to the user in that case (https://github.com/DesktopPlus/desktop-plus/issues/146)
+      // Ugly hack to avoid infinite loading in Windows (https://github.com/desktop-plus/desktop-plus/issues/119)
+      // Additionally, don't await this call, as it could fail and we don't want to show an error to the user in that case (https://github.com/desktop-plus/desktop-plus/issues/146)
       this.dispatcher.loadStatusLight(repo).catch(e => {
         log.error(`Trampoline loadStatusLight failed (${repo.path})`, e)
       })

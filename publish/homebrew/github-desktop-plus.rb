@@ -5,10 +5,10 @@ cask "github-desktop-plus" do
   sha256 arm:   "[[SHA256_ARM64]]",
          intel: "[[SHA256_X64]]"
 
-  url "https://github.com/DesktopPlus/desktop-plus/releases/download/v#{version}/DesktopPlus-v#{version}-macOS-#{arch}.zip"
+  url "https://github.com/desktop-plus/desktop-plus/releases/download/v#{version}/DesktopPlus-v#{version}-macOS-#{arch}.zip"
   name "Desktop Plus"
   desc "GitHub Desktop fork with extra features and improvements"
-  homepage "https://github.com/DesktopPlus/desktop-plus"
+  homepage "https://github.com/desktop-plus/desktop-plus"
 
   livecheck do
     url :url
