@@ -22,6 +22,7 @@ interface ICopilotModelPickerProps {
   readonly byokProviders: ReadonlyArray<IBYOKProvider>
   readonly value: string
   readonly onChange: (value: string) => void
+  readonly maxHeight?: number
 }
 
 interface ICopilotModelPickerState {
@@ -204,9 +205,13 @@ export const getCopilotModelPickerSelectionInfo = (
 }
 
 const getCopilotModelTitle = (item: ICopilotModelListItem) => {
-  const billingLabel = getPremiumRequestsBillingLabel(item.billing)
+  // The "auto" model routes to different models with varying multipliers, so
+  // showing a single multiplier label would be misleading.
+  const billingLabel = item.isDefault
+    ? ''
+    : getPremiumRequestsBillingLabel(item.billing)
   return item.isDefault
-    ? `${item.name}${billingLabel} (default)`
+    ? `${item.name} (default)`
     : `${item.name}${billingLabel}`
 }
 
@@ -480,6 +485,7 @@ export class CopilotModelPicker extends React.Component<
         buttonAriaLabel={buttonAriaLabel}
         decoration={PopoverDecoration.Bordered}
         label={this.props.label}
+        maxHeight={this.props.maxHeight}
         ref={this.popoverRef}
       >
         <SectionFilterList<ICopilotModelListItem>

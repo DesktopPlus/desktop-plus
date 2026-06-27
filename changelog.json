@@ -1,9 +1,33 @@
 {
   "releases": {
+    "3.6.1": [
+      "[Fixed] Copilot Max plan users are recognized correctly - #22400",
+      "[Fixed] The default Copilot model is Auto",
+      "[Fixed] Improved loading times for Copilot features - #22394",
+      "[Fixed] Copilot model picker no longer extends beyond window dimensions in small window sizes - #22391"
+    ],
+    "3.6.1-beta2": [
+      "[Fixed] Copilot Max plan users are recognized correctly - #22400"
+    ],
+    "3.6.1-beta1": [
+      "[Fixed] The default Copilot model is Auto",
+      "[Fixed] Improved loading times for Copilot features - #22394",
+      "[Fixed] Copilot model picker no longer extends beyond window dimensions in small window sizes - #22391"
+    ],
+    "3.6.0": [
+      "[New] Git worktree support for managing multiple working directories of the same repository - #22102. Thanks @devxoul!",
+      "[New] Resolve merge conflicts with Copilot - #22265",
+      "[Fixed] Recover conflict dialog from permanently frozen state when conflict state becomes invalid, preventing users from needing to restart the app - #22348",
+      "[Added] Allow users to stop an ongoing request to generate a commit message with Copilot - #22324. Thanks @say25!",
+      "[Fixed] Fix Warp terminal detection on Windows to support the new Warp registry path with fallback to the legacy path - #22264. Thanks @Cocodrulo!",
+      "[Fixed] Items in lists such as branches and changed files are properly announced by screen readers on Windows - #22219",
+      "[Fixed] No longer prompts to initialize Git LFS for repositories that use non-LFS Git filters - #22180. Thanks @RonanLB!",
+      "[Fixed] Remove misleading pointer cursor from the example link preview in Accessibility preferences - #22244"
+    ],
     "3.5.13-beta4": [
       "[Fixed] Worktree list is updated after after renaming or deleting worktrees - #22335 Thanks @pol-rivero!",
-      "[Fixed] The toolbar correctly calculates available space when worktree dropdown isn't visible - #22356 Thanks @pol-rivero!",
-      "[Fixed] Toolbar space allocation calculates available space based on order of toolbar buttons - #22364 Thanks @pol-rivero!",
+      "[Fixed] The toolbar correctly calculates available space when worktree dropdown isn't visible - #22356. Thanks @pol-rivero!",
+      "[Fixed] Toolbar space allocation calculates available space based on order of toolbar buttons - #22364. Thanks @pol-rivero!",
       "[Fixed] Resolve issue where error messages in the Preferences dialog were not displayed correctly - #22363"
     ],
     "3.5.13-beta3": [

@@ -502,16 +502,20 @@ function getNotarizationOptions(): OsxNotarizeOptions | undefined {
 }
 
 function copyCopilotDependency() {
+  const currentPlatform = process.platform
+  const currentArch = getDistArchitecture()
+
+  // The @github/copilot package now uses platform-specific optional
+  // dependencies (e.g. @github/copilot-darwin-arm64) that already contain only
+  // the binaries for the target platform, so we copy the appropriate one
+  // directly instead of the base @github/copilot package.
   const copilotPkgDir = path.resolve(
     projectRoot,
-    `app/node_modules/@github/copilot`
+    `app/node_modules/@github/copilot-${currentPlatform}-${currentArch}`
   )
 
   const copilotDestination = path.resolve(outRoot, 'copilot')
   removeAndCopy(copilotPkgDir, copilotDestination)
-
-  const currentPlatform = process.platform
-  const currentArch = getDistArchitecture()
 
   // Platforms and architectures to remove from prebuild directories. This is
   // an exhaustive list of all non-current platforms rather than an allowlist,
@@ -581,6 +585,10 @@ function copyCopilotDependency() {
   ]
 
   for (const prebuildsDir of prebuildsDirs) {
+    if (!existsSync(prebuildsDir)) {
+      continue
+    }
+
     const prebuilds = readdirSync(prebuildsDir)
     for (const prebuild of prebuilds) {
       const shouldRemove =
@@ -597,8 +605,11 @@ function copyCopilotDependency() {
     }
   }
 
-  // mxc cleanup
+  // mxc cleanup (only if the mxc-bin directory exists in this copilot version)
   const mxcDir = path.join(copilotDestination, 'mxc-bin')
+  if (!existsSync(mxcDir)) {
+    return
+  }
   // Read subdirs, delete the one that has a name that is not a valid architecture
   const mxcSubdirs = readdirSync(mxcDir)
   for (const subdir of mxcSubdirs) {
@@ -614,6 +625,9 @@ function copyCopilotDependency() {
   // - on macOS, delete exe and dll files and also linux-test-proxy and lxc-exec
   // - on Linux, delete exe and dll files and also mxc-exec-mac
   const mxcArchSubdirPath = path.join(mxcDir, currentArch)
+  if (!existsSync(mxcArchSubdirPath)) {
+    return
+  }
   const mxcFiles = readdirSync(mxcArchSubdirPath)
   const isWindowsBinary = (file: string) =>
     file.endsWith('.exe') || file.endsWith('.dll')

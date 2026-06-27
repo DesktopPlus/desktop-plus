@@ -604,7 +604,7 @@ describe('getPreferredDefaultModel', () => {
   it('returns the default model when it is in the list', () => {
     const defaultModel = makeModel({
       id: DefaultCopilotModel,
-      name: 'GPT-5 mini',
+      name: 'Auto',
       billing: { multiplier: 1 },
     })
     const other = makeModel({
@@ -732,7 +732,7 @@ describe('getPreferredDefaultModel', () => {
   it('prefers default model regardless of billing cost', () => {
     const defaultModel = makeModel({
       id: DefaultCopilotModel,
-      name: 'GPT-5 mini',
+      name: 'Auto',
       billing: { multiplier: 100 },
     })
     const cheapModel = makeModel({

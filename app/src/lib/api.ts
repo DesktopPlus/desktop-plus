@@ -2874,6 +2874,9 @@ export class API {
     try {
       const response = await this.ghRequest('POST', '/graphql', {
         body: { query: graphql },
+        customHeaders: {
+          'GraphQL-Features': 'copilot_iap_max_sku',
+        },
       })
       if (response === null) {
         return undefined

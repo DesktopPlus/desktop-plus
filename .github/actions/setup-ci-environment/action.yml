@@ -16,12 +16,12 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: '3.11'
 
     - name: Use Node.js ${{ inputs.node-version }}
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: ${{ inputs.node-version }}
         cache: yarn
@@ -37,6 +37,23 @@ runs:
       env:
         npm_config_arch: ${{ inputs.arch }}
         TARGET_ARCH: ${{ inputs.arch }}
+
+    - name: Install cross-compilation copilot package
+      shell: bash
+      run: |
+        # Map runner.os to Node's process.platform naming
+        case "$RUNNER_OS" in
+          macOS)   PLATFORM=darwin ;;
+          Windows) PLATFORM=win32 ;;
+          Linux)   PLATFORM=linux ;;
+        esac
+
+        PKG="@github/copilot-${PLATFORM}-${{ inputs.arch }}"
+
+        if [ ! -d "app/node_modules/@github/copilot-${PLATFORM}-${{ inputs.arch }}" ]; then
+          echo "Installing ${PKG} for cross-compilation…"
+          cd app && yarn add --optional --ignore-platform --ignore-scripts ${PKG}
+        fi
 
     - name: Install arm64 cross-compilation tools
       if: ${{ runner.os == 'Linux' && inputs.arch == 'arm64' }}

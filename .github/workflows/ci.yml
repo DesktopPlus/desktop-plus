@@ -55,7 +55,7 @@ jobs:
     env:
       RELEASE_CHANNEL: ${{ inputs.environment }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           repository: ${{ inputs.repository || github.repository }}
           ref: ${{ inputs.ref }}
@@ -132,7 +132,7 @@ jobs:
       SEMVER_COMPATIBLE_VERSION:
         ${{ needs.compute_version.outputs.SEMVER_COMPATIBLE_VERSION }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           repository: ${{ inputs.repository || github.repository }}
           ref: ${{ inputs.ref }}
@@ -198,7 +198,8 @@ jobs:
         run:
           script/generate-appimage-zsync.sh dist/*.AppImage ${{ matrix.arch }}
       - name: Upload artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
+        if: ${{ inputs.upload-artifacts }}
         with:
           name: ${{matrix.friendlyName}}-${{matrix.arch}}
           path: |
@@ -235,7 +236,7 @@ jobs:
     env:
       RELEASE_CHANNEL: ${{ inputs.environment }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: ${{ inputs.repository || github.repository }}
           ref: ${{ inputs.ref }}
@@ -339,7 +340,7 @@ jobs:
         run: yarn test:e2e:run:packaged
       - name: Upload E2E artifacts
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-${{matrix.friendlyName}}-${{matrix.arch}}
           path: playwright-videos/**
