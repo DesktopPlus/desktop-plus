@@ -8,7 +8,7 @@ cask "github-desktop-plus" do
   url "https://github.com/desktop-plus/desktop-plus/releases/download/v#{version}/DesktopPlus-v#{version}-macOS-#{arch}.zip"
   name "Desktop Plus"
   desc "GitHub Desktop fork with extra features and improvements"
-  homepage "https://github.com/desktop-plus/desktop-plus"
+  homepage "https://desktop-plus.org"
 
   livecheck do
     url :url

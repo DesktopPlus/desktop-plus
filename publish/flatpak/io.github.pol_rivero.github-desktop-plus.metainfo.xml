@@ -14,7 +14,7 @@
     </p>
     <p>See https://github.com/desktop-plus/desktop-plus for a full list of added features.</p>
   </description>
-  <url type="homepage">https://github.com/desktop-plus/desktop-plus</url>
+  <url type="homepage">https://desktop-plus.org</url>
   <url type="vcs-browser">https://github.com/desktop-plus/desktop-plus</url>
   <url type="bugtracker">https://github.com/desktop-plus/desktop-plus/issues</url>
   <launchable type="desktop-id">io.github.pol_rivero.github-desktop-plus.desktop</launchable>

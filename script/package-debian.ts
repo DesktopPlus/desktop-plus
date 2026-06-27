@@ -61,7 +61,7 @@ const options: DebianOptions = {
     'GitHub Desktop fork with advanced functionality and improvements.',
   section: 'GNOME;GTK;Development',
   priority: 'extra',
-  homepage: 'https://github.com/desktop-plus/desktop-plus',
+  homepage: 'https://desktop-plus.org',
   depends: [
     // Desktop-specific dependencies
     'libcurl3 | libcurl4',

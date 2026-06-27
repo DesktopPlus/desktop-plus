@@ -6,8 +6,8 @@ import { Loading } from '../lib/loading'
 import { LinkButton } from '../lib/link-button'
 import { Dialog, DialogContent, DefaultDialogFooter } from '../dialog'
 
-const WebsiteURL = 'https://desktop.github.com'
-const RepositoryURL = 'https://github.com/desktop/desktop'
+const WebsiteURL = 'https://desktop-plus.org'
+const RepositoryURL = 'https://github.com/desktop-plus/desktop-plus'
 
 interface IAcknowledgementsProps {
   /** The function to call when the dialog should be dismissed. */
