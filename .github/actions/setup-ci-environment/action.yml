@@ -40,6 +40,9 @@ runs:
 
     - name: Install cross-compilation copilot package
       shell: bash
+      env:
+        npm_config_arch: ${{ inputs.arch }}
+        TARGET_ARCH: ${{ inputs.arch }}
       run: |
         # Map runner.os to Node's process.platform naming
         case "$RUNNER_OS" in
@@ -53,6 +56,17 @@ runs:
         if [ ! -d "app/node_modules/@github/copilot-${PLATFORM}-${{ inputs.arch }}" ]; then
           echo "Installing ${PKG} for cross-compilation…"
           cd app && yarn add --optional --ignore-platform --ignore-scripts ${PKG}
+
+          # `yarn add` re-links node_modules, which re-extracts our vendored file:
+          # deps (desktop-notifications, desktop-trampoline) from yarn's cache and
+          # drops the dist/ and native binaries built by their `node-gyp rebuild &&
+          # tsc` install script — yarn does not re-run install scripts for
+          # already-locked deps on a re-link, so the webpack build would otherwise
+          # fail with "Can't resolve 'desktop-notifications'". Re-run those scripts
+          # via `npm rebuild` (honouring npm_config_arch for the native binaries).
+          # tsc resolves from the repo-root node_modules.
+          PATH="${GITHUB_WORKSPACE}/node_modules/.bin:$PATH" \
+            npm rebuild desktop-notifications desktop-trampoline
         fi
 
     - name: Install arm64 cross-compilation tools
