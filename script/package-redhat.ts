@@ -25,36 +25,53 @@ function getArchitecture() {
 
 const distRoot = getDistRoot()
 
-// best guess based on documentation
+// Based on the documentation:
+// https://github.com/electron-userland/electron-installer-redhat/
 type RedhatOptions = {
-  // required
   src: string
   dest: string
   arch: string
-  // optional
+  rename?: (dest: string, src: string) => string
+  name?: string
+  productName?: string
+  genericName?: string
   description?: string
   productDescription?: string
+  version?: string
+  revision?: string
+  license?: string
+  platform?: string
+  requires?: Array<string>
+  homepage?: string
+  compressionLevel?: number
+  bin?: string
+  execArguments?: Array<string>
+  icon?: string | Record<string, string>
   categories?: Array<string>
-  icon?: any
+  mimeType?: Array<string>
   scripts?: {
     pre?: string
     post?: string
     preun?: string
     postun?: string
   }
-  homepage?: string
-  mimeType?: Array<string>
-  requires?: Array<string>
+  desktopTemplate?: string
+  specTemplate?: string
 }
 
 const options: RedhatOptions = {
   src: getDistPath(),
   dest: distRoot,
   arch: getArchitecture(),
-  description: 'Simple collaboration from your desktop',
+  name: 'desktop-plus',
+  description:
+    'GitHub Desktop fork with advanced functionality and improvements.',
+  productName: 'Desktop Plus',
   productDescription:
     'GitHub Desktop fork with advanced functionality and improvements.',
-  categories: ['GNOME', 'GTK', 'Development'],
+  genericName: 'Git Client',
+  categories: ['Development', 'GitHub'],
+  homepage: 'https://desktop-plus.org',
   requires: [
     // dugite-native dependencies
     '(libcurl or libcurl4)',
@@ -74,7 +91,6 @@ const options: RedhatOptions = {
     post: 'script/resources/rpm/post.sh',
     preun: 'script/resources/rpm/preun.sh',
   },
-  homepage: 'https://desktop-plus.org',
   mimeType: [
     'x-scheme-handler/x-github-client',
     'x-scheme-handler/x-github-desktop-auth',

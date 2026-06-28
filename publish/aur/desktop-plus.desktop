@@ -1,8 +1,7 @@
 [Desktop Entry]
 Name=Desktop Plus
+GenericName=Git Client
 Comment=GitHub Desktop fork with advanced functionality and improvements.
-Comment[es]=Trabaja con GitHub desde tu escritorio.
-Comment[eu]=GitHub-ekin lan egin zure ordenagailutik.
 Exec=/usr/bin/desktop-plus %U
 Terminal=false
 Type=Application

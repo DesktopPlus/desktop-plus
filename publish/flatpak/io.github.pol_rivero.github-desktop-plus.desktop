@@ -1,5 +1,6 @@
 [Desktop Entry]
 Name=Desktop Plus
+GenericName=Git Client
 Comment=GitHub Desktop fork with advanced functionality and improvements.
 Exec=start-desktop-plus %U 
 Icon=io.github.pol_rivero.github-desktop-plus

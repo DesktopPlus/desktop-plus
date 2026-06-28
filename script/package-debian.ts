@@ -27,47 +27,65 @@ function getArchitecture() {
 
 const distRoot = getDistRoot()
 
-// best guess based on documentation
+// Based on the documentation:
+// https://github.com/electron-userland/electron-installer-debian/
 type DebianOptions = {
-  // required
   src: string
   dest: string
-  arch: 'amd64' | 'i386' | 'arm64' | 'armhf'
-  // optional
+  rename?: (dest: string, src: string) => string
+  name?: string
+  productName?: string
+  genericName?: string
   description?: string
   productDescription?: string
-  categories?: Array<string>
+  version?: string
+  revision?: string
   section?: string
   priority?: 'required' | 'important' | 'standard' | 'optional' | 'extra'
+  arch?: string
+  size?: number
+  depends?: Array<string>
+  recommends?: Array<string>
+  suggests?: Array<string>
+  enhances?: Array<string>
+  preDepends?: Array<string>
+  maintainer?: string
   homepage?: string
-  icon?: any
+  bin?: string
+  icon?: string | Record<string, string>
+  categories?: Array<string>
+  mimeType?: Array<string>
+  lintianOverrides?: Array<string>
   scripts?: {
     preinst?: string
     postinst?: string
     prerm?: string
     postrm?: string
   }
-  mimeType?: Array<string>
-  maintainer?: string
-  depends?: Array<string>
+  desktopTemplate?: string
+  compression?: 'xz' | 'gzip' | 'bzip2' | 'lzma' | 'zstd' | 'none'
 }
 
 const options: DebianOptions = {
   src: getDistPath(),
   dest: distRoot,
   arch: getArchitecture(),
-  description: 'Simple collaboration from your desktop',
+  name: 'desktop-plus',
+  description:
+    'GitHub Desktop fork with advanced functionality and improvements.',
+  productName: 'Desktop Plus',
   productDescription:
     'GitHub Desktop fork with advanced functionality and improvements.',
+  genericName: 'Git Client',
+  categories: ['Development', 'GitHub'],
   section: 'GNOME;GTK;Development',
   priority: 'extra',
   homepage: 'https://desktop-plus.org',
   depends: [
-    // Desktop-specific dependencies
+    // dugite-native dependencies
     'libcurl3 | libcurl4',
-    // The bundled git links against libcurl-gnutls.so.4. The package providing
-    // it was renamed across Debian releases.
     'libcurl3-gnutls | libcurl4-gnutls',
+    // keytar dependencies
     'libsecret-1-0',
     'gnome-keyring',
   ],
