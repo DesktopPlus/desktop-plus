@@ -64,6 +64,7 @@ const options: RedhatOptions = {
   src: getDistPath(),
   dest: distRoot,
   arch: getArchitecture(),
+  version: getVersion(),
   name: 'desktop-plus',
   description:
     'GitHub Desktop fork with advanced functionality and improvements.',
