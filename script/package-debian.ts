@@ -1,10 +1,13 @@
 import { promisify } from 'util'
 import { join } from 'path'
+import { execFileSync } from 'child_process'
+import { tmpdir } from 'os'
+import { mkdtemp } from 'fs/promises'
 
 import glob = require('glob')
 const globPromise = promisify(glob)
 
-import { rename } from 'fs-extra'
+import { ensureDir, rename, writeFile } from 'fs-extra'
 
 import { getVersion } from '../app/package-info'
 import {
@@ -138,4 +141,50 @@ export async function packageDebian(): Promise<string> {
   await rename(oldPath, newPath)
 
   return Promise.resolve(newPath)
+}
+
+export async function packageTransitionalDebian(): Promise<string> {
+  if (process.platform === 'win32') {
+    return Promise.reject('Windows is not supported')
+  }
+
+  const arch = getArchitecture()
+  const version = getVersion()
+
+  const stagingDir = await mkdtemp(
+    join(tmpdir(), 'github-desktop-plus-transitional-')
+  )
+  const debianDir = join(stagingDir, 'DEBIAN')
+  await ensureDir(debianDir)
+
+  const control =
+    [
+      `Package: github-desktop-plus`,
+      `Version: ${version}`,
+      `Architecture: ${arch}`,
+      `Maintainer: ${options.maintainer}`,
+      `Depends: ${options.name}`,
+      `Section: devel`,
+      `Priority: optional`,
+      `Homepage: ${options.homepage}`,
+      `Description: Transitional package for Desktop Plus`,
+      ` GitHub Desktop Plus has been renamed to Desktop Plus. This dummy package`,
+      ` depends on the new "${options.name}" package and can be safely removed`,
+      ` once the migration is complete.`,
+    ].join('\n') + '\n'
+
+  await writeFile(join(debianDir, 'control'), control)
+
+  // Use the canonical Debian filename (name_version_arch.deb). Besides being
+  // what dpkg-name produces, the "_arch" suffix (vs. the real package's
+  // "-x86_64"/"-arm64") keeps this out of the release_aur job's
+  // "*-x86_64.deb"/"*-arm64.deb" globs, which expect a single match.
+  const newFileName = `github-desktop-plus_${version}_${arch}.deb`
+  const newPath = join(distRoot, newFileName)
+
+  execFileSync('fakeroot', ['dpkg-deb', '--build', stagingDir, newPath], {
+    stdio: 'inherit',
+  })
+
+  return newPath
 }

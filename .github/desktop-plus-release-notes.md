@@ -23,7 +23,7 @@ Thank you very much to @ghedwards for generously giving me the ownership of the 
 
 ### Stuff you *don't* need to worry about
 
-- For now, the package names used for installing the application remain the same to ensure a smooth transition. I'll update the package names progressively in future releases, and plan to use each platform's migration tools to minimize the amount of manual intervention required.
+- I'll update the package names progressively in future releases, and plan to use each platform's migration tools to minimize the amount of manual intervention required.
 - The app's config location has changed due to the new name, but the app settings are automatically migrated on first launch so you don't need to worry about that.
 
 
